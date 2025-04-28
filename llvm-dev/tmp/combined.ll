@@ -7,6 +7,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 @.str = private unnamed_addr constant [17 x i8] c"Stack[%d/%d]: 0x\00", align 1
 @.str.1 = private unnamed_addr constant [5 x i8] c"%02x\00", align 1
+@heap_position = dso_local local_unnamed_addr global i32 0, align 4
+@heap = dso_local local_unnamed_addr global [8192 x i8] zeroinitializer, align 16
 @const_push32_1 = local_unnamed_addr constant [32 x i8] c"\AB\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF\FF"
 @const_push32_2 = local_unnamed_addr constant [32 x i8] c"\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA\CA"
 @const_zero32 = local_unnamed_addr constant [32 x i8] zeroinitializer
@@ -279,6 +281,22 @@ declare noundef i32 @printf(i8* nocapture noundef readonly, ...) local_unnamed_a
 ; Function Attrs: nofree nounwind
 declare noundef i32 @putchar(i32 noundef) local_unnamed_addr #9
 
+; Function Attrs: mustprogress nofree nosync nounwind uwtable willreturn
+define dso_local i32 @stack_load_input(%struct.evm_stack* nocapture noundef readonly %0, i32 noundef %1) local_unnamed_addr #3 {
+  %3 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 0
+  %4 = load i8*, i8** %3, align 8, !tbaa !5
+  %5 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 1
+  %6 = load i64, i64* %5, align 8, !tbaa !11
+  %7 = getelementptr inbounds i8, i8* %4, i64 %6
+  %8 = shl nsw i32 %1, 5
+  %9 = sext i32 %8 to i64
+  %10 = sub nsw i64 0, %9
+  %11 = getelementptr inbounds i8, i8* %7, i64 %10
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 getelementptr inbounds ([8192 x i8], [8192 x i8]* @heap, i64 0, i64 0), i8* align 1 %11, i64 %9, i1 false)
+  store i32 %1, i32* @heap_position, align 4, !tbaa !13
+  ret i32 0
+}
+
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind uwtable willreturn
 define dso_local i32 @math_add(%struct.evm_stack* nocapture noundef %0) local_unnamed_addr #6 {
   %2 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 0
@@ -292,22 +310,22 @@ define dso_local i32 @math_add(%struct.evm_stack* nocapture noundef %0) local_un
   %10 = bitcast i8* %8 to i64*
   %11 = getelementptr inbounds i8, i8* %7, i64 24
   %12 = bitcast i8* %11 to i64*
-  %13 = load i64, i64* %12, align 8, !tbaa !13
+  %13 = load i64, i64* %12, align 8, !tbaa !15
   %14 = getelementptr inbounds i8, i8* %8, i64 24
   %15 = bitcast i8* %14 to i64*
-  %16 = load i64, i64* %15, align 8, !tbaa !13
+  %16 = load i64, i64* %15, align 8, !tbaa !15
   %17 = add i64 %16, %13
   %18 = icmp ult i64 %17, %13
   %19 = icmp ult i64 %17, %16
   %20 = or i1 %18, %19
   %21 = zext i1 %20 to i64
-  store i64 %17, i64* %12, align 8, !tbaa !13
+  store i64 %17, i64* %12, align 8, !tbaa !15
   %22 = getelementptr inbounds i8, i8* %7, i64 16
   %23 = bitcast i8* %22 to i64*
-  %24 = load i64, i64* %23, align 8, !tbaa !13
+  %24 = load i64, i64* %23, align 8, !tbaa !15
   %25 = getelementptr inbounds i8, i8* %8, i64 16
   %26 = bitcast i8* %25 to i64*
-  %27 = load i64, i64* %26, align 8, !tbaa !13
+  %27 = load i64, i64* %26, align 8, !tbaa !15
   %28 = add i64 %27, %24
   %29 = add i64 %28, %21
   %30 = icmp ult i64 %29, %24
@@ -318,13 +336,13 @@ define dso_local i32 @math_add(%struct.evm_stack* nocapture noundef %0) local_un
   %35 = and i1 %34, %33
   %36 = or i1 %32, %35
   %37 = zext i1 %36 to i64
-  store i64 %29, i64* %23, align 8, !tbaa !13
+  store i64 %29, i64* %23, align 8, !tbaa !15
   %38 = getelementptr inbounds i8, i8* %7, i64 8
   %39 = bitcast i8* %38 to i64*
-  %40 = load i64, i64* %39, align 8, !tbaa !13
+  %40 = load i64, i64* %39, align 8, !tbaa !15
   %41 = getelementptr inbounds i8, i8* %8, i64 8
   %42 = bitcast i8* %41 to i64*
-  %43 = load i64, i64* %42, align 8, !tbaa !13
+  %43 = load i64, i64* %42, align 8, !tbaa !15
   %44 = add i64 %43, %40
   %45 = add i64 %44, %37
   %46 = icmp ult i64 %45, %40
@@ -335,12 +353,12 @@ define dso_local i32 @math_add(%struct.evm_stack* nocapture noundef %0) local_un
   %51 = and i1 %50, %49
   %52 = or i1 %48, %51
   %53 = zext i1 %52 to i64
-  store i64 %45, i64* %39, align 8, !tbaa !13
-  %54 = load i64, i64* %9, align 8, !tbaa !13
-  %55 = load i64, i64* %10, align 8, !tbaa !13
+  store i64 %45, i64* %39, align 8, !tbaa !15
+  %54 = load i64, i64* %9, align 8, !tbaa !15
+  %55 = load i64, i64* %10, align 8, !tbaa !15
   %56 = add i64 %55, %54
   %57 = add i64 %56, %53
-  store i64 %57, i64* %9, align 8, !tbaa !13
+  store i64 %57, i64* %9, align 8, !tbaa !15
   %58 = load i64, i64* %4, align 8, !tbaa !11
   %59 = add i64 %58, -1
   store i64 %59, i64* %4, align 8, !tbaa !11
@@ -359,19 +377,19 @@ define dso_local i32 @math_sub(%struct.evm_stack* nocapture noundef %0) local_un
   %9 = bitcast i8* %7 to i64*
   %10 = getelementptr inbounds i8, i8* %7, i64 24
   %11 = bitcast i8* %10 to i64*
-  %12 = load i64, i64* %11, align 8, !tbaa !13
+  %12 = load i64, i64* %11, align 8, !tbaa !15
   %13 = getelementptr inbounds i8, i8* %8, i64 24
   %14 = bitcast i8* %13 to i64*
-  %15 = load i64, i64* %14, align 8, !tbaa !13
+  %15 = load i64, i64* %14, align 8, !tbaa !15
   %16 = sub i64 %12, %15
   %17 = icmp ult i64 %12, %15
-  store i64 %16, i64* %11, align 8, !tbaa !13
+  store i64 %16, i64* %11, align 8, !tbaa !15
   %18 = getelementptr inbounds i8, i8* %7, i64 16
   %19 = bitcast i8* %18 to i64*
-  %20 = load i64, i64* %19, align 8, !tbaa !13
+  %20 = load i64, i64* %19, align 8, !tbaa !15
   %21 = getelementptr inbounds i8, i8* %8, i64 16
   %22 = bitcast i8* %21 to i64*
-  %23 = load i64, i64* %22, align 8, !tbaa !13
+  %23 = load i64, i64* %22, align 8, !tbaa !15
   %24 = icmp ult i64 %20, %23
   br i1 %24, label %28, label %25
 
@@ -387,13 +405,13 @@ define dso_local i32 @math_sub(%struct.evm_stack* nocapture noundef %0) local_un
   %30 = sub i64 %.neg3, %23
   %31 = bitcast i8* %8 to i64*
   %.neg = sext i1 %29 to i64
-  store i64 %30, i64* %19, align 8, !tbaa !13
+  store i64 %30, i64* %19, align 8, !tbaa !15
   %32 = getelementptr inbounds i8, i8* %7, i64 8
   %33 = bitcast i8* %32 to i64*
-  %34 = load i64, i64* %33, align 8, !tbaa !13
+  %34 = load i64, i64* %33, align 8, !tbaa !15
   %35 = getelementptr inbounds i8, i8* %8, i64 8
   %36 = bitcast i8* %35 to i64*
-  %37 = load i64, i64* %36, align 8, !tbaa !13
+  %37 = load i64, i64* %36, align 8, !tbaa !15
   %.neg6 = add i64 %34, %.neg
   %38 = sub i64 %.neg6, %37
   %39 = icmp ult i64 %34, %37
@@ -401,12 +419,12 @@ define dso_local i32 @math_sub(%struct.evm_stack* nocapture noundef %0) local_un
   %41 = select i1 %40, i1 %29, i1 false
   %42 = select i1 %39, i1 true, i1 %41
   %.neg11 = sext i1 %42 to i64
-  store i64 %38, i64* %33, align 8, !tbaa !13
-  %43 = load i64, i64* %9, align 8, !tbaa !13
-  %44 = load i64, i64* %31, align 8, !tbaa !13
+  store i64 %38, i64* %33, align 8, !tbaa !15
+  %43 = load i64, i64* %9, align 8, !tbaa !15
+  %44 = load i64, i64* %31, align 8, !tbaa !15
   %.neg9 = sub i64 %43, %44
   %45 = add i64 %.neg9, %.neg11
-  store i64 %45, i64* %9, align 8, !tbaa !13
+  store i64 %45, i64* %9, align 8, !tbaa !15
   %46 = load i64, i64* %4, align 8, !tbaa !11
   %47 = add i64 %46, -1
   store i64 %47, i64* %4, align 8, !tbaa !11
@@ -469,55 +487,55 @@ define dso_local i32 @math_mul(%struct.evm_stack* nocapture noundef %0) local_un
   %46 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %44
   %47 = getelementptr inbounds i16, i16* %46, i64 -7
   %48 = bitcast i16* %47 to <8 x i16>*
-  %49 = load <8 x i16>, <8 x i16>* %48, align 2, !tbaa !14
+  %49 = load <8 x i16>, <8 x i16>* %48, align 2, !tbaa !16
   %50 = shufflevector <8 x i16> %49, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
   %51 = add <8 x i16> %45, %50
   %52 = shufflevector <8 x i16> %51, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
-  store <8 x i16> %52, <8 x i16>* %48, align 2, !tbaa !14
+  store <8 x i16> %52, <8 x i16>* %48, align 2, !tbaa !16
   %53 = add nuw nsw i64 %38, 24
   %54 = mul nuw <8 x i16> %43, %26
   %55 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %53
   %56 = getelementptr inbounds i16, i16* %55, i64 -7
   %57 = bitcast i16* %56 to <8 x i16>*
-  %58 = load <8 x i16>, <8 x i16>* %57, align 2, !tbaa !14
+  %58 = load <8 x i16>, <8 x i16>* %57, align 2, !tbaa !16
   %59 = shufflevector <8 x i16> %58, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
   %60 = add <8 x i16> %54, %59
   %61 = shufflevector <8 x i16> %60, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
-  store <8 x i16> %61, <8 x i16>* %57, align 2, !tbaa !14
+  store <8 x i16> %61, <8 x i16>* %57, align 2, !tbaa !16
   %62 = add nuw nsw i64 %38, 16
   %63 = mul nuw <8 x i16> %43, %31
   %64 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %62
   %65 = getelementptr inbounds i16, i16* %64, i64 -7
   %66 = bitcast i16* %65 to <8 x i16>*
-  %67 = load <8 x i16>, <8 x i16>* %66, align 2, !tbaa !14
+  %67 = load <8 x i16>, <8 x i16>* %66, align 2, !tbaa !16
   %68 = shufflevector <8 x i16> %67, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
   %69 = add <8 x i16> %68, %63
   %70 = shufflevector <8 x i16> %69, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
-  store <8 x i16> %70, <8 x i16>* %66, align 2, !tbaa !14
+  store <8 x i16> %70, <8 x i16>* %66, align 2, !tbaa !16
   %71 = add nuw nsw i64 %38, 8
   %72 = mul nuw <8 x i16> %43, %36
   %73 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %71
   %74 = getelementptr inbounds i16, i16* %73, i64 -7
   %75 = bitcast i16* %74 to <8 x i16>*
-  %76 = load <8 x i16>, <8 x i16>* %75, align 2, !tbaa !14
+  %76 = load <8 x i16>, <8 x i16>* %75, align 2, !tbaa !16
   %77 = shufflevector <8 x i16> %76, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
   %78 = add <8 x i16> %77, %72
   %79 = shufflevector <8 x i16> %78, <8 x i16> poison, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
-  store <8 x i16> %79, <8 x i16>* %75, align 2, !tbaa !14
+  store <8 x i16> %79, <8 x i16>* %75, align 2, !tbaa !16
   %80 = add nsw i64 %38, -1
   %81 = icmp eq i64 %38, 0
-  br i1 %81, label %82, label %37, !llvm.loop !16
+  br i1 %81, label %82, label %37, !llvm.loop !18
 
 82:                                               ; preds = %37
   %83 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 63
-  %84 = load i16, i16* %83, align 2, !tbaa !14
+  %84 = load i16, i16* %83, align 2, !tbaa !16
   %85 = lshr i16 %84, 8
   %86 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 62
-  %87 = load i16, i16* %86, align 4, !tbaa !14
+  %87 = load i16, i16* %86, align 4, !tbaa !16
   %88 = add i16 %87, %85
-  store i16 %88, i16* %86, align 4, !tbaa !14
+  store i16 %88, i16* %86, align 4, !tbaa !16
   %89 = and i16 %84, 255
-  store i16 %89, i16* %83, align 2, !tbaa !14
+  store i16 %89, i16* %83, align 2, !tbaa !16
   br label %90
 
 90:                                               ; preds = %82, %90
@@ -527,45 +545,45 @@ define dso_local i32 @math_mul(%struct.evm_stack* nocapture noundef %0) local_un
   %94 = lshr i16 %91, 8
   %95 = add nsw i64 %93, -2
   %96 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %95
-  %97 = load i16, i16* %96, align 2, !tbaa !14
+  %97 = load i16, i16* %96, align 2, !tbaa !16
   %98 = add i16 %97, %94
   %99 = and i16 %91, 255
-  store i16 %99, i16* %92, align 2, !tbaa !14
+  store i16 %99, i16* %92, align 2, !tbaa !16
   %100 = lshr i16 %98, 8
   %101 = add nsw i64 %93, -3
   %102 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 %101
-  %103 = load i16, i16* %102, align 2, !tbaa !14
+  %103 = load i16, i16* %102, align 2, !tbaa !16
   %104 = add i16 %103, %100
-  store i16 %104, i16* %102, align 2, !tbaa !14
+  store i16 %104, i16* %102, align 2, !tbaa !16
   %105 = and i16 %98, 255
-  store i16 %105, i16* %96, align 2, !tbaa !14
+  store i16 %105, i16* %96, align 2, !tbaa !16
   %106 = icmp ugt i64 %95, 1
-  br i1 %106, label %90, label %107, !llvm.loop !18
+  br i1 %106, label %90, label %107, !llvm.loop !20
 
 107:                                              ; preds = %90
   %108 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 32
   %109 = bitcast i16* %108 to <8 x i16>*
-  %110 = load <8 x i16>, <8 x i16>* %109, align 16, !tbaa !14
+  %110 = load <8 x i16>, <8 x i16>* %109, align 16, !tbaa !16
   %111 = trunc <8 x i16> %110 to <8 x i8>
   %112 = bitcast i8* %14 to <8 x i8>*
   store <8 x i8> %111, <8 x i8>* %112, align 1, !tbaa !12
   %113 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 40
   %114 = bitcast i16* %113 to <8 x i16>*
-  %115 = load <8 x i16>, <8 x i16>* %114, align 16, !tbaa !14
+  %115 = load <8 x i16>, <8 x i16>* %114, align 16, !tbaa !16
   %116 = trunc <8 x i16> %115 to <8 x i8>
   %117 = getelementptr inbounds i8, i8* %14, i64 8
   %118 = bitcast i8* %117 to <8 x i8>*
   store <8 x i8> %116, <8 x i8>* %118, align 1, !tbaa !12
   %119 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 48
   %120 = bitcast i16* %119 to <8 x i16>*
-  %121 = load <8 x i16>, <8 x i16>* %120, align 16, !tbaa !14
+  %121 = load <8 x i16>, <8 x i16>* %120, align 16, !tbaa !16
   %122 = trunc <8 x i16> %121 to <8 x i8>
   %123 = getelementptr inbounds i8, i8* %14, i64 16
   %124 = bitcast i8* %123 to <8 x i8>*
   store <8 x i8> %122, <8 x i8>* %124, align 1, !tbaa !12
   %125 = getelementptr inbounds [64 x i16], [64 x i16]* %2, i64 0, i64 56
   %126 = bitcast i16* %125 to <8 x i16>*
-  %127 = load <8 x i16>, <8 x i16>* %126, align 16, !tbaa !14
+  %127 = load <8 x i16>, <8 x i16>* %126, align 16, !tbaa !16
   %128 = trunc <8 x i16> %127 to <8 x i8>
   %129 = getelementptr inbounds i8, i8* %14, i64 24
   %130 = bitcast i8* %129 to <8 x i8>*
@@ -921,12 +939,12 @@ define dso_local i32 @math_div(%struct.evm_stack* nocapture noundef %0) local_un
   store i8 %222, i8* %213, align 1, !tbaa !12
   %223 = add nsw i64 %200, -2
   %224 = icmp eq i64 %212, 0
-  br i1 %224, label %195, label %.preheader, !llvm.loop !19
+  br i1 %224, label %195, label %.preheader, !llvm.loop !21
 
 225:                                              ; preds = %195, %192
   %226 = add nuw nsw i32 %150, 1
   %227 = icmp eq i32 %226, 256
-  br i1 %227, label %152, label %._crit_edge, !llvm.loop !20
+  br i1 %227, label %152, label %._crit_edge, !llvm.loop !22
 
 ._crit_edge:                                      ; preds = %225
   %.pre = load i8, i8* %145, align 16, !tbaa !12
@@ -1044,11 +1062,13 @@ attributes #14 = { nounwind readonly willreturn }
 !10 = !{!"long", !8, i64 0}
 !11 = !{!6, !10, i64 8}
 !12 = !{!8, !8, i64 0}
-!13 = !{!10, !10, i64 0}
-!14 = !{!15, !15, i64 0}
-!15 = !{!"short", !8, i64 0}
-!16 = distinct !{!16, !17}
-!17 = !{!"llvm.loop.mustprogress"}
-!18 = distinct !{!18, !17}
-!19 = distinct !{!19, !17}
-!20 = distinct !{!20, !17}
+!13 = !{!14, !14, i64 0}
+!14 = !{!"int", !8, i64 0}
+!15 = !{!10, !10, i64 0}
+!16 = !{!17, !17, i64 0}
+!17 = !{!"short", !8, i64 0}
+!18 = distinct !{!18, !19}
+!19 = !{!"llvm.loop.mustprogress"}
+!20 = distinct !{!20, !19}
+!21 = distinct !{!21, !19}
+!22 = distinct !{!22, !19}

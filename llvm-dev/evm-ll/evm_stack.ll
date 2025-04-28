@@ -7,6 +7,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 @.str = private unnamed_addr constant [17 x i8] c"Stack[%d/%d]: 0x\00", align 1
 @.str.1 = private unnamed_addr constant [5 x i8] c"%02x\00", align 1
+@heap_position = dso_local local_unnamed_addr global i32 0, align 4
+@heap = dso_local local_unnamed_addr global [8192 x i8] zeroinitializer, align 16
 
 ; Function Attrs: mustprogress nounwind uwtable willreturn
 define dso_local noalias %struct.evm_stack* @stack_init() local_unnamed_addr #0 {
@@ -271,6 +273,22 @@ define dso_local i32 @stack_print_item(%struct.evm_stack* nocapture noundef read
 ; Function Attrs: nofree nounwind
 declare noundef i32 @printf(i8* nocapture noundef readonly, ...) local_unnamed_addr #8
 
+; Function Attrs: mustprogress nofree nosync nounwind uwtable willreturn
+define dso_local i32 @stack_load_input(%struct.evm_stack* nocapture noundef readonly %0, i32 noundef %1) local_unnamed_addr #4 {
+  %3 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 0
+  %4 = load i8*, i8** %3, align 8, !tbaa !5
+  %5 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 1
+  %6 = load i64, i64* %5, align 8, !tbaa !11
+  %7 = getelementptr inbounds i8, i8* %4, i64 %6
+  %8 = shl nsw i32 %1, 5
+  %9 = sext i32 %8 to i64
+  %10 = sub nsw i64 0, %9
+  %11 = getelementptr inbounds i8, i8* %7, i64 %10
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 getelementptr inbounds ([8192 x i8], [8192 x i8]* @heap, i64 0, i64 0), i8* align 1 %11, i64 %9, i1 false)
+  store i32 %1, i32* @heap_position, align 4, !tbaa !13
+  ret i32 0
+}
+
 ; Function Attrs: nofree nounwind
 declare noundef i32 @putchar(i32 noundef) local_unnamed_addr #9
 
@@ -302,3 +320,5 @@ attributes #10 = { nounwind }
 !10 = !{!"long", !8, i64 0}
 !11 = !{!6, !10, i64 8}
 !12 = !{!8, !8, i64 0}
+!13 = !{!14, !14, i64 0}
+!14 = !{!"int", !8, i64 0}

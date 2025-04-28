@@ -59,3 +59,22 @@ int stack_print_item(evm_stack *stack, int n) {
     printf("\n");
     return 0;
 }
+
+unsigned char heap[STACK_WORD_SIZE * STACK_CHUNK];
+int heap_position = 0;
+
+int stack_load_input(evm_stack *stack, int n) {
+    unsigned char *s_pos = stack->stack + stack->position - (n * STACK_WORD_SIZE);
+    memcpy(heap, s_pos, (n * STACK_WORD_SIZE));
+    heap_position = n;
+    return 0;
+}
+
+int stack_load_output(evm_stack *stack, int n) {
+    unsigned char *h_pos = heap_position;
+    unsigned char *s_pos = stack->stack + stack->position - (n * STACK_WORD_SIZE);
+
+    memcpy(s_pos, heap, (n * STACK_WORD_SIZE));
+    heap_position = n;
+    return 0;
+}
