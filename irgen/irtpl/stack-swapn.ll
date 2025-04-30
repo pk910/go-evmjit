@@ -4,6 +4,13 @@
 {{- define "ircode" }}
 {{ if .Verbose }}; OP {{ .Id }}: SWAP{{ .Position }}{{- end }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
+{{- if .StackCheck }}
+%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul (add .Position 1) 32 }}
+br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_ok
+l{{ .Id }}_err_underflow:
+ret i32 -10
+l{{ .Id }}_ok:
+{{- end }}
 %l{{ .Id }}_2 = alloca [32 x i8], align 16
 %l{{ .Id }}_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1
 %l{{ .Id }}_4 = getelementptr inbounds i8, i8* %l{{ .Id }}_3, i64 -32

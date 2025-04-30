@@ -4,6 +4,18 @@
 {{- define "ircode" }}
 {{ if .Verbose }}; OP {{ .Id }}: DUP{{ .Position }}{{- end }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
+{{- if .StackCheck }}
+%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul .Position 32 }}
+br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_check_overflow
+l{{ .Id }}_err_underflow:
+ret i32 -10
+l{{ .Id }}_check_overflow:
+%l{{ .Id }}_overflow_check = icmp ugt i64 %l{{ .Id }}_1, {{ sub (mul .MaxStack 32) 32 }}
+br i1 %l{{ .Id }}_overflow_check, label %l{{ .Id }}_err_overflow, label %l{{ .Id }}_ok
+l{{ .Id }}_err_overflow:
+  ret i32 -11
+l{{ .Id }}_ok:
+{{- end }}
 %l{{ .Id }}_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1
 %l{{ .Id }}_3 = shl nsw i32 {{ .Position }}, 5
 %l{{ .Id }}_4 = sext i32 %l{{ .Id }}_3 to i64

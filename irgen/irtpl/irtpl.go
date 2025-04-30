@@ -15,19 +15,19 @@ var templateFiles embed.FS
 var templateCache = make(map[string]*template.Template)
 var templateCacheMux = &sync.RWMutex{}
 var templateFuncs = template.FuncMap{
-	"llhex": func(data []byte) string {
+	"llhexrev": func(data []byte) string {
 		var b strings.Builder
-		for _, v := range data {
-			b.WriteString("\\" + hex.EncodeToString([]byte{v}))
+		for i := len(data) - 1; i >= 0; i-- {
+			b.WriteString("\\" + hex.EncodeToString([]byte{data[i]}))
 		}
 		return b.String()
 	},
 	"hex": func(data []byte) string {
 		return hex.EncodeToString(data)
 	},
-	"sub": func(a, b uint64) uint64 {
-		return a - b
-	},
+	"add": func(a, b uint64) uint64 { return a + b },
+	"sub": func(a, b uint64) uint64 { return a - b },
+	"mul": func(a, b uint64) uint64 { return a * b },
 }
 
 func GetTemplate(files ...string) *template.Template {

@@ -297,6 +297,22 @@ define dso_local i32 @stack_load_input(%struct.evm_stack* nocapture noundef read
   ret i32 0
 }
 
+; Function Attrs: mustprogress nofree nosync nounwind uwtable willreturn
+define dso_local i32 @stack_load_output(%struct.evm_stack* nocapture noundef readonly %0, i32 noundef %1) local_unnamed_addr #3 {
+  %3 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 0
+  %4 = load i8*, i8** %3, align 8, !tbaa !5
+  %5 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 1
+  %6 = load i64, i64* %5, align 8, !tbaa !11
+  %7 = getelementptr inbounds i8, i8* %4, i64 %6
+  %8 = shl nsw i32 %1, 5
+  %9 = sext i32 %8 to i64
+  %10 = sub nsw i64 0, %9
+  %11 = getelementptr inbounds i8, i8* %7, i64 %10
+  tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %11, i8* align 16 getelementptr inbounds ([8192 x i8], [8192 x i8]* @heap, i64 0, i64 0), i64 %9, i1 false)
+  store i32 %1, i32* @heap_position, align 4, !tbaa !13
+  ret i32 0
+}
+
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind uwtable willreturn
 define dso_local i32 @math_add(%struct.evm_stack* nocapture noundef %0) local_unnamed_addr #6 {
   %2 = getelementptr inbounds %struct.evm_stack, %struct.evm_stack* %0, i64 0, i32 0

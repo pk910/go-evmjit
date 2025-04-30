@@ -7,9 +7,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 @const_zero32 = local_unnamed_addr constant [32 x i8] zeroinitializer
 @const_data1 = local_unnamed_addr constant [32 x i8] c"\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01"
-@const_data2 = local_unnamed_addr constant [6 x i8] c"\22\22\22\22\22\22"
+@const_data2 = local_unnamed_addr constant [1 x i8] c"\02"
 @const_data3 = local_unnamed_addr constant [8 x i8] c"\11\11\11\11\11\11\11\11"
-@const_data7 = local_unnamed_addr constant [1 x i8] c"\02"
 
 ; Function Attrs: mustprogress nofree nosync nounwind willreturn
 define i32 @test(%struct.evm_stack* nocapture noundef %stack) local_unnamed_addr #0 {
@@ -19,22 +18,15 @@ entry:
   %heap_stack_position_ptr = getelementptr %struct.evm_stack, %struct.evm_stack* %stack, i64 0, i32 1
   %out_1 = load i64, i64* %heap_stack_position_ptr, align 8
   %out_2 = getelementptr inbounds i8, i8* %heap_stack_addr, i64 %out_1
-  %stack_alloc.sroa.0.sroa.0.0.out_2.sroa_cast = bitcast i8* %out_2 to i192*
-  store i192 0, i192* %stack_alloc.sroa.0.sroa.0.0.out_2.sroa_cast, align 1
-  %stack_alloc.sroa.0.sroa.5.0.out_2.sroa_idx = getelementptr inbounds i8, i8* %out_2, i64 24
-  %stack_alloc.sroa.0.sroa.5.0.out_2.sroa_cast = bitcast i8* %stack_alloc.sroa.0.sroa.5.0.out_2.sroa_idx to i64*
-  store i64 1229782938247303441, i64* %stack_alloc.sroa.0.sroa.5.0.out_2.sroa_cast, align 1
-  %stack_alloc.sroa.5.0.out_2.sroa_idx = getelementptr inbounds i8, i8* %out_2, i64 32
-  %stack_alloc.sroa.5.0.out_2.sroa_cast = bitcast i8* %stack_alloc.sroa.5.0.out_2.sroa_idx to i256*
-  store i256 15893031856102168051122538215893013559319206767914225051475127666071063036161, i256* %stack_alloc.sroa.5.0.out_2.sroa_cast, align 1
-  %stack_alloc.sroa.9.0.out_2.sroa_idx = getelementptr inbounds i8, i8* %out_2, i64 64
-  %stack_alloc.sroa.9.0.out_2.sroa_cast = bitcast i8* %stack_alloc.sroa.9.0.out_2.sroa_idx to i256*
-  store i256 7719472615821079694486258884886748472628946349495526508223681904229939675136, i256* %stack_alloc.sroa.9.0.out_2.sroa_cast, align 1
-  %stack_alloc.sroa.15.0.out_2.sroa_raw_idx = getelementptr inbounds i8, i8* %out_2, i64 96
-  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(31) %stack_alloc.sroa.15.0.out_2.sroa_raw_idx, i8 0, i64 31, i1 false)
-  %stack_alloc.sroa.16.0.out_2.sroa_raw_idx = getelementptr inbounds i8, i8* %out_2, i64 127
-  store i8 2, i8* %stack_alloc.sroa.16.0.out_2.sroa_raw_idx, align 1
+  %out_l2_dst_ptr = getelementptr i8, i8* %out_2, i64 64
+  %out_l2_dst_ptr_lo = bitcast i8* %out_l2_dst_ptr to i128*
+  %out_l2_dst_ptr_hi = getelementptr i8, i8* %out_l2_dst_ptr, i64 16
+  %0 = bitcast i8* %out_l2_dst_ptr_hi to i128*
+  store i128 0, i128* %out_l2_dst_ptr_lo, align 4
+  store i128 22685491128062564229661857557203910656, i128* %0, align 4
+  %out_l3_dst_ptr = getelementptr i8, i8* %out_2, i64 96
   %out_6 = add i64 %out_1, 128
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 4 dereferenceable(32) %out_l3_dst_ptr, i8 0, i64 32, i1 false)
   store i64 %out_6, i64* %heap_stack_position_ptr, align 8
   ret i32 0
 }
