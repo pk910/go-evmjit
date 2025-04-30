@@ -14,6 +14,7 @@ type IRFunction struct {
 	fncode     bytes.Buffer
 	opcount    uint32
 	maxstack   uint16
+	heapstack  uint16
 	inputs     uint8
 	outputs    uint8
 	verbose    bool
@@ -28,11 +29,17 @@ func NewIRFunction(name string, verbose bool) *IRFunction {
 		fncode:     bytes.Buffer{},
 		opcount:    0,
 		maxstack:   256,
+		heapstack:  256,
 		inputs:     0,
-		outputs:    4,
+		outputs:    0,
 		verbose:    verbose,
 		stackcheck: true,
 	}
+}
+
+func (irf *IRFunction) SetInputOutputs(inputs, outputs uint8) {
+	irf.inputs = inputs
+	irf.outputs = outputs
 }
 
 func (irf *IRFunction) AppendOpcode(opcode uint8, data []uint8) (uint8, error) {
@@ -62,75 +69,34 @@ store i64 0, i64* %%stack_position_ptr
 %%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%stack, i32 0, i32 0
 %%heap_stack_addr = load i8*, i8** %%heap_stack_ptr, align 8
 %%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%stack, i32 0, i32 1
-	`, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
+`, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
 
 	if irf.inputs > 0 {
 		// load inputs from heap stack to local stack
-		fncode.WriteString(fmt.Sprintf(`
-%%in_6 = load i64, i64* %%heap_stack_position_ptr, align 8
-%%in_7 = getelementptr inbounds i8, i8* %%heap_stack_addr, i64 %%in_6
-%%in_8 = shl nsw i64 %d, 5
-%%in_10 = sub nsw i64 0, %%in_8
-%%in_11 = getelementptr inbounds i8, i8* %%in_7, i64 %%in_10
-tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 16 %%stack_addr, i8* align 1 %%in_11, i64 %%in_8, i1 false)
-store i64 %%in_8, i64* %%stack_position_ptr, align 4
-%%in_12 = add i64 %%in_6, -%d
-store i64 %%in_12, i64* %%heap_stack_position_ptr, align 8
-		`, irf.inputs, irf.inputs*32))
+		tpl := irtpl.GetTemplate("stack-input.ll")
+		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+			"Inputs":     uint64(irf.inputs),
+			"StackCheck": irf.stackcheck,
+			"MaxStack":   uint64(irf.maxstack),
+		})
 	}
 
 	fncode.WriteString(irf.fncode.String())
 
 	if irf.outputs > 0 {
 		// load outputs from local stack to heap stack
-		fncode.WriteString(fmt.Sprintf(`
-%%out_1 = load i64, i64* %%heap_stack_position_ptr, align 8
-%%out_2 = getelementptr inbounds i8, i8* %%heap_stack_addr, i64 %%out_1
-%%out_3 = load i64, i64* %%stack_position_ptr
-%%out_4 = sub i64 %%out_3, %d
-%%out_5 = getelementptr inbounds i8, i8* %%stack_addr, i64 %%out_4
-`, irf.outputs*32))
-
-		for i := 0; i < int(irf.outputs); i++ {
-			fncode.WriteString(fmt.Sprintf(`
-%%out_l%d_src_ptr = getelementptr i8, i8* %%out_5, i64 %d
-%%out_l%d_dst_ptr = getelementptr i8, i8* %%out_2, i64 %d`,
-				i, i*32, i, i*32,
-			))
-			fncode.WriteString(fmt.Sprintf(`
-%%out_l%d_src_ptr_lo = bitcast i8* %%out_l%d_src_ptr to i128*
-%%out_l%d_src_ptr_hi = getelementptr i128, i128* %%out_l%d_src_ptr_lo, i32 1
-%%out_l%d_dst_ptr_lo = bitcast i8* %%out_l%d_dst_ptr to i128*
-%%out_l%d_dst_ptr_hi = getelementptr i128, i128* %%out_l%d_dst_ptr_lo, i32 1`,
-				i, i, i, i, i, i, i, i,
-			))
-			fncode.WriteString(fmt.Sprintf(`
-%%out_l%d_word_lo = load i128, i128* %%out_l%d_src_ptr_lo
-%%out_l%d_word_hi = load i128, i128* %%out_l%d_src_ptr_hi
-%%out_l%d_reversed_lo = call i128 @llvm.bswap.i128(i128 %%out_l%d_word_hi)
-%%out_l%d_reversed_hi = call i128 @llvm.bswap.i128(i128 %%out_l%d_word_lo)
-store i128 %%out_l%d_reversed_lo, i128* %%out_l%d_dst_ptr_lo
-store i128 %%out_l%d_reversed_hi, i128* %%out_l%d_dst_ptr_hi`,
-				i, i, i, i, i, i, i, i, i, i, i, i,
-			))
-		}
-
-		/*
-					fncode.WriteString(fmt.Sprintf(`
-			tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %%out_2, i8* align 16 %%out_5, i64 %d, i1 false)
-			`, irf.outputs*32))
-		*/
-
-		fncode.WriteString(fmt.Sprintf(`
-%%out_6 = add i64 %%out_1, %d
-store i64 %%out_6, i64* %%heap_stack_position_ptr, align 8
-	`, irf.outputs*32))
+		tpl := irtpl.GetTemplate("stack-output.ll")
+		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+			"Outputs":    uint64(irf.outputs),
+			"StackCheck": irf.stackcheck,
+			"MaxStack":   uint64(irf.heapstack),
+		})
 	}
 
 	fncode.WriteString(`
 ret i32 0
 }
-	`)
+`)
 
 	return fncode.String()
 }

@@ -28,6 +28,13 @@ var templateFuncs = template.FuncMap{
 	"add": func(a, b uint64) uint64 { return a + b },
 	"sub": func(a, b uint64) uint64 { return a - b },
 	"mul": func(a, b uint64) uint64 { return a * b },
+	"loop": func(count uint64) []uint64 {
+		var items []uint64
+		for i := uint64(0); i < count; i++ {
+			items = append(items, i)
+		}
+		return items
+	},
 }
 
 func GetTemplate(files ...string) *template.Template {

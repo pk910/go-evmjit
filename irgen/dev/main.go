@@ -23,6 +23,7 @@ func main() {
 	//irf.AppendPushN(1, []uint8{0x02})
 	//irf.AppendMul()
 	//irf.AppendSwapN(1)
+	irf.SetInputOutputs(0, 2)
 
 	irb := irgen.NewIRBuilder()
 	irb.AddFunction(irf)
