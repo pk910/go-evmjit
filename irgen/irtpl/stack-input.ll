@@ -1,5 +1,4 @@
 {{- define "ircode" }}
-
 %in_1 = load i64, i64* %heap_stack_position_ptr, align 8
 %in_2 = getelementptr inbounds i8, i8* %heap_stack_addr, i64 %in_1
 %in_3 = load i64, i64* %stack_position_ptr
@@ -7,12 +6,14 @@
 %in_stack_check1 = icmp ult i64 %in_1, {{ mul .inputs 32 }}
 br i1 %in_stack_check1, label %in_err1, label %in_ok1
 in_err1:
-  ret i32 -10
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
 in_ok1:
 %in_stack_check2 = icmp ugt i64 %in_3, {{ mul (sub .MaxStack .inputs) 32 }}
 br i1 %in_stack_check2, label %in_err2, label %in_ok2
 in_err2:
-  ret i32 -11
+  store i32 -11, i32* %exitcode_ptr
+  br label %error_return
 in_ok2:
 {{- end }}
 %in_4 = sub i64 %in_3, {{ mul .Inputs 32 }}

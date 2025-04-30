@@ -33,6 +33,7 @@ type IROpcode struct {
 	name  string
 	id    uint32
 	pc    uint32
+	gas   int32
 	tpl   *template.Template
 	model map[string]interface{}
 }
@@ -44,7 +45,7 @@ func NewIRFunction(name string, verbose bool) *IRFunction {
 		branches:    []*IRBranch{},
 		branchCount: 0,
 		pccount:     0,
-		maxstack:    256,
+		maxstack:    1024,
 		heapstack:   256,
 		inputs:      0,
 		outputs:     0,
@@ -62,6 +63,9 @@ func (irf *IRFunction) String() string {
 	fncode := bytes.Buffer{}
 	defcode := bytes.Buffer{}
 	opscode := bytes.Buffer{}
+
+	gastpl := irtpl.GetTemplate("evmc-gas.ll")
+
 	for _, branch := range irf.branches {
 		if branch.pc > 0 || !irf.noinitjump {
 			opscode.WriteString(fmt.Sprintf(`
@@ -74,6 +78,7 @@ br_%d:
 			model := map[string]interface{}{
 				"Id":         opcode.id,
 				"Pc":         opcode.pc,
+				"Gas":        opcode.gas,
 				"Verbose":    irf.verbose,
 				"StackCheck": irf.stackcheck,
 				"MaxStack":   uint64(irf.maxstack),
@@ -84,6 +89,10 @@ br_%d:
 				}
 			}
 			opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
+			opcode.tpl.ExecuteTemplate(&opscode, "irhead", model)
+			if opcode.gas > 0 {
+				gastpl.ExecuteTemplate(&opscode, "gascheck", model)
+			}
 			opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
 		}
 	}
@@ -97,15 +106,26 @@ entry:
 %%stack_alloc = alloca [%d x i8], align 32
 %%stack_addr = getelementptr inbounds [%d x i8], [%d x i8]* %%stack_alloc, i64 0, i64 0
 %%stack_position_ptr = alloca i64, align 4
+%%stack_gasleft_ptr = alloca i64, align 4
+%%exitcode_ptr = alloca i32, align 4
 store i64 0, i64* %%stack_position_ptr
 
 %%callctx_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 0
-%%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
+%%pc_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 1
+%%gasleft_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 2
+%%gasleft_val = load i64, i64* %%gasleft_ptr, align 4
+store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 
+`, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
+
+	if irf.outputs > 0 || irf.inputs > 0 {
+		fncode.WriteString(fmt.Sprintf(`
+%%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
 %%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 0
 %%heap_stack_addr = load i8*, i8** %%heap_stack_ptr, align 8
 %%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 1
-`, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
+`))
+	}
 
 	// load inputs from heap stack to local stack
 	if irf.inputs > 0 {
@@ -136,6 +156,11 @@ store i64 0, i64* %%stack_position_ptr
 	// add opcodes
 	fncode.WriteString(opscode.String())
 
+	fncode.WriteString(`
+br label %graceful_return
+graceful_return:
+`)
+
 	// load outputs from local stack to heap stack
 	if irf.outputs > 0 {
 		tpl := irtpl.GetTemplate("stack-output.ll")
@@ -147,14 +172,21 @@ store i64 0, i64* %%stack_position_ptr
 	}
 
 	fncode.WriteString(`
+%res_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
+store i64 %res_gas1, i64* %gasleft_ptr
 ret i32 0
+error_return:
+%exitcode_val = load i32, i32* %exitcode_ptr, align 4
+%err_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
+store i64 %err_gas1, i64* %gasleft_ptr
+ret i32 %exitcode_val
 }
 `)
 
 	return fncode.String()
 }
 
-func (irf *IRFunction) appendOpcode(name string, pccount uint8, model map[string]interface{}) error {
+func (irf *IRFunction) appendOpcode(name string, pccount uint8, gascost int32, model map[string]interface{}) error {
 	if irf.branchCount == 0 {
 		irf.branches = append(irf.branches, &IRBranch{
 			pc:      0,
@@ -169,6 +201,7 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, model map[string
 	opcode := &IROpcode{
 		id:    irf.opcount,
 		pc:    irf.pccount,
+		gas:   gascost,
 		name:  name,
 		tpl:   tpl,
 		model: model,
@@ -180,102 +213,114 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, model map[string
 }
 
 func (irf *IRFunction) AppendPushN(n uint8, data []uint8) error {
-	return irf.appendOpcode("stack-pushn.ll", 1+n, map[string]interface{}{
+	gascost := int32(3)
+	if n == 0 {
+		gascost = 2
+	}
+	return irf.appendOpcode("stack-pushn.ll", 1+n, gascost, map[string]interface{}{
 		"DataLen": uint64(n),
 		"Data":    data,
 	})
 }
 
 func (irf *IRFunction) AppendDupN(n uint8) error {
-	return irf.appendOpcode("stack-dupn.ll", 1, map[string]interface{}{
+	return irf.appendOpcode("stack-dupn.ll", 1, 3, map[string]interface{}{
 		"Position": uint64(n),
 	})
 }
 
 func (irf *IRFunction) AppendSwapN(n uint8) error {
-	return irf.appendOpcode("stack-swapn.ll", 1, map[string]interface{}{
+	return irf.appendOpcode("stack-swapn.ll", 1, 3, map[string]interface{}{
 		"Position": uint64(n),
 	})
 }
 
 func (irf *IRFunction) AppendPop() error {
-	return irf.appendOpcode("stack-pop.ll", 1, nil)
+	return irf.appendOpcode("stack-pop.ll", 1, 2, nil)
 }
 
 func (irf *IRFunction) AppendAdd() error {
-	return irf.appendOpcode("math-add.ll", 1, nil)
+	return irf.appendOpcode("math-add.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendSub() error {
-	return irf.appendOpcode("math-sub.ll", 1, nil)
+	return irf.appendOpcode("math-sub.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendMul() error {
-	return irf.appendOpcode("math-mul.ll", 1, nil)
+	return irf.appendOpcode("math-mul.ll", 1, 5, nil)
 }
 
 func (irf *IRFunction) AppendDiv() error {
-	return irf.appendOpcode("math-div.ll", 1, nil)
+	return irf.appendOpcode("math-div.ll", 1, 5, nil)
+}
+
+func (irf *IRFunction) AppendAddmod() error {
+	return irf.appendOpcode("math-addmod.ll", 1, 8, nil)
+}
+
+func (irf *IRFunction) AppendMulmod() error {
+	return irf.appendOpcode("math-mulmod.ll", 1, 8, nil)
 }
 
 func (irf *IRFunction) AppendLt() error {
-	return irf.appendOpcode("logic-lt.ll", 1, nil)
+	return irf.appendOpcode("logic-lt.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendGt() error {
-	return irf.appendOpcode("logic-gt.ll", 1, nil)
+	return irf.appendOpcode("logic-gt.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendSlt() error {
-	return irf.appendOpcode("logic-slt.ll", 1, nil)
+	return irf.appendOpcode("logic-slt.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendSgt() error {
-	return irf.appendOpcode("logic-sgt.ll", 1, nil)
+	return irf.appendOpcode("logic-sgt.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendEq() error {
-	return irf.appendOpcode("logic-eq.ll", 1, nil)
+	return irf.appendOpcode("logic-eq.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendIsZero() error {
-	return irf.appendOpcode("logic-iszero.ll", 1, nil)
+	return irf.appendOpcode("logic-iszero.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendAnd() error {
-	return irf.appendOpcode("logic-and.ll", 1, nil)
+	return irf.appendOpcode("logic-and.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendOr() error {
-	return irf.appendOpcode("logic-or.ll", 1, nil)
+	return irf.appendOpcode("logic-or.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendXor() error {
-	return irf.appendOpcode("logic-xor.ll", 1, nil)
+	return irf.appendOpcode("logic-xor.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendNot() error {
-	return irf.appendOpcode("logic-not.ll", 1, nil)
+	return irf.appendOpcode("logic-not.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendByte() error {
-	return irf.appendOpcode("logic-byte.ll", 1, nil)
+	return irf.appendOpcode("logic-byte.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendShl() error {
-	return irf.appendOpcode("logic-shl.ll", 1, nil)
+	return irf.appendOpcode("logic-shl.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendShr() error {
-	return irf.appendOpcode("logic-shr.ll", 1, nil)
+	return irf.appendOpcode("logic-shr.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendSar() error {
-	return irf.appendOpcode("logic-sar.ll", 1, nil)
+	return irf.appendOpcode("logic-sar.ll", 1, 3, nil)
 }
 
 func (irf *IRFunction) AppendHighOpcode(opcode, inputs, outputs uint8) error {
-	return irf.appendOpcode("evmc-call.ll", 1, map[string]interface{}{
+	return irf.appendOpcode("evmc-call.ll", 1, 0, map[string]interface{}{
 		"Name":    fmt.Sprintf("c%d", opcode),
 		"Opcode":  uint64(opcode),
 		"Inputs":  uint64(inputs),
@@ -289,21 +334,25 @@ func (irf *IRFunction) AppendJumpDest() error {
 		opcodes: []*IROpcode{},
 	})
 	irf.branchCount++
-	return irf.appendOpcode("flow-jumpdest.ll", 1, nil)
+	return irf.appendOpcode("flow-jumpdest.ll", 1, 1, nil)
 }
 
 func (irf *IRFunction) AppendJump() error {
-	return irf.appendOpcode("flow-jump.ll", 1, nil)
+	return irf.appendOpcode("flow-jump.ll", 1, 8, nil)
 }
 
 func (irf *IRFunction) AppendJumpI() error {
-	return irf.appendOpcode("flow-jumpi.ll", 1, nil)
+	return irf.appendOpcode("flow-jumpi.ll", 1, 10, nil)
 }
 
 func (irf *IRFunction) AppendStop() error {
-	return irf.appendOpcode("flow-stop.ll", 1, nil)
+	return irf.appendOpcode("flow-stop.ll", 1, 0, nil)
 }
 
 func (irf *IRFunction) AppendPc() error {
-	return irf.appendOpcode("flow-pc.ll", 1, nil)
+	return irf.appendOpcode("flow-pc.ll", 1, 2, nil)
+}
+
+func (irf *IRFunction) AppendGas() error {
+	return irf.appendOpcode("flow-gas.ll", 1, 2, nil)
 }

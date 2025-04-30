@@ -6,7 +6,7 @@
 
 struct evm_callctx;
 typedef struct evm_callctx evm_callctx;
-typedef int (*opcode_func_ptr)(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len);
+typedef int (*opcode_func_ptr)(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, int *gasleft);
 
 struct evm_callctx {
     evm_stack *stack;
@@ -16,7 +16,7 @@ struct evm_callctx {
     void *custom_data;
 };
 
-evm_callctx *callctx_init(evm_stack *stack);
+evm_callctx *callctx_init(evm_stack *stack, int gaslimit);
 void callctx_free(evm_callctx *callctx);
 uint64_t callctx_get_pc(evm_callctx *callctx);
 uint64_t callctx_get_gas(evm_callctx *callctx);

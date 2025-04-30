@@ -1,14 +1,19 @@
 {{- define "defcode" }}
 {{- end }}
 
+{{- define "irhead" }}
+{{ if .Verbose }}; OP {{ .Id }}: SHR{{- end }}
+{{- end }} 
+
 {{- define "ircode" }}
-{{ if .Verbose }}; OP {{ .Id }}: SHL{{- end }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
 {{- if .StackCheck }}
 %l{{ .Id }}_stack_check = icmp ult i64 %l{{ .Id }}_1, 64
 br i1 %l{{ .Id }}_stack_check, label %l{{ .Id }}_err1, label %l{{ .Id }}_ok_shl
 l{{ .Id }}_err1:
-  ret i32 -10
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
 l{{ .Id }}_ok_shl:
 {{- end }}
 %l{{ .Id }}_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1

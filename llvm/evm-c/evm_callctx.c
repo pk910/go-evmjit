@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <assert.h>
 
-int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len);
+int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, int *gasleft);
 
-evm_callctx *callctx_init(evm_stack *stack) {
+evm_callctx *callctx_init(evm_stack *stack, int gaslimit) {
     evm_callctx *ctx = (evm_callctx *)malloc(sizeof(evm_callctx));
     if (!ctx) {
         return NULL;
@@ -15,7 +15,7 @@ evm_callctx *callctx_init(evm_stack *stack) {
 
     ctx->stack = stack;
     ctx->pc = 0;
-    ctx->gas = 0;
+    ctx->gas = gaslimit;
     ctx->opcode_fn = callctx_opcode_callback;
     ctx->custom_data = NULL;
 
@@ -37,10 +37,14 @@ uint64_t callctx_get_gas(evm_callctx *callctx) {
     return callctx->gas;
 }
 
-int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len) {
+int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, int *gasleft) {
     assert(callctx != NULL);
 
-    printf("EVM-C [OP: %d] ", opcode);
+    printf("EVM-C [OP: %d", opcode);
+    if (gasleft) {
+        printf(", gas: %d", *gasleft);
+    }
+    printf("] ");
     if (inputs) {
         printf("in (%d): 0x", inputs_len / 32);
         for (int i = 0; i < inputs_len; i++) {

@@ -91,7 +91,7 @@ func (m *Module) initEngine() {
 	m.engine = C.createJIT(m.mod)
 }
 
-func (m *Module) Call(name string) (int, error) {
+func (m *Module) Call(name string, gaslimit uint64) (int, error) {
 	if m.engine == nil {
 		m.initEngine()
 		if m.engine == nil {
@@ -105,7 +105,7 @@ func (m *Module) Call(name string) (int, error) {
 	}
 	m.stack = stack
 
-	callctx := C.callctx_init(stack)
+	callctx := C.callctx_init(stack, C.int(gaslimit))
 	defer C.callctx_free(callctx)
 
 	funcName := C.CString(name)
@@ -122,12 +122,18 @@ func (m *Module) Call(name string) (int, error) {
 	retVal := C.call_jit_func(testFuncPtr, callctx)
 
 	fmt.Printf("Result from @test: %d\n", retVal)
+	fmt.Printf("  Gas left: %d\n", C.callctx_get_gas(callctx))
+	fmt.Printf("  PC: %d\n", C.callctx_get_pc(callctx))
 
 	return int(retVal), nil
 }
 
 func (m *Module) PrintStack(n int) {
 	C.stack_print_item(m.stack, C.int(n))
+}
+
+func (m *Module) GetStackSize() int {
+	return int(C.stack_get_size(m.stack))
 }
 
 // Marshal serializes the LLVM module to a byte slice using bitcode format.

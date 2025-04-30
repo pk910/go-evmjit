@@ -13,6 +13,7 @@ target triple = "x86_64-pc-linux-gnu"
 @__PRETTY_FUNCTION__.callctx_get_gas = private unnamed_addr constant [40 x i8] c"uint64_t callctx_get_gas(evm_callctx *)\00", align 1
 @__PRETTY_FUNCTION__.callctx_opcode_callback = private unnamed_addr constant [78 x i8] c"int32_t callctx_opcode_callback(evm_callctx *, uint8_t, uint8_t *, uint8_t *)\00", align 1
 @.str.2 = private unnamed_addr constant [12 x i8] c"Opcode: %d\0A\00", align 1
+@__PRETTY_FUNCTION__.callctx_get_gasleft = private unnamed_addr constant [39 x i8] c"int callctx_get_gasleft(evm_callctx *)\00", align 1
 
 ; Function Attrs: mustprogress nofree nounwind uwtable willreturn
 define dso_local noalias %struct.evm_callctx* @callctx_init(%struct.evm_stack* noundef %0) local_unnamed_addr #0 {
@@ -168,6 +169,22 @@ define dso_local i32 @callctx_switch_branch(%struct.evm_callctx* nocapture nound
 7:                                                ; preds = %2, %6, %5, %4, %3
   %8 = phi i32 [ 0, %6 ], [ 88, %5 ], [ 3, %4 ], [ 2, %3 ], [ 1, %2 ]
   ret i32 %8
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @callctx_get_gasleft(%struct.evm_callctx* noundef readonly %0) local_unnamed_addr #3 {
+  %2 = icmp eq %struct.evm_callctx* %0, null
+  br i1 %2, label %3, label %4
+
+3:                                                ; preds = %1
+  tail call void @__assert_fail(i8* noundef getelementptr inbounds ([16 x i8], [16 x i8]* @.str, i64 0, i64 0), i8* noundef getelementptr inbounds ([22 x i8], [22 x i8]* @.str.1, i64 0, i64 0), i32 noundef 73, i8* noundef getelementptr inbounds ([39 x i8], [39 x i8]* @__PRETTY_FUNCTION__.callctx_get_gasleft, i64 0, i64 0)) #11
+  unreachable
+
+4:                                                ; preds = %1
+  %5 = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %0, i64 0, i32 2
+  %6 = load i64, i64* %5, align 8, !tbaa !14
+  %7 = trunc i64 %6 to i32
+  ret i32 %7
 }
 
 attributes #0 = { mustprogress nofree nounwind uwtable willreturn "frame-pointer"="none" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }

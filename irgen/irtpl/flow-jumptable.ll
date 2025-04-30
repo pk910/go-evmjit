@@ -12,6 +12,7 @@ switch i64 %jump_target_val, label %jump_invalid [
 ]
 jump_invalid:
 {{- end }}
-  ret i32 -12
+  store i32 -12, i32* %exitcode_ptr
+  br label %error_return
 post_jumptable:
 {{ end }}

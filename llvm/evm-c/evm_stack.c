@@ -57,3 +57,7 @@ int stack_print_item(evm_stack *stack, int n) {
     printf("\n");
     return 0;
 }
+
+int stack_get_size(evm_stack *stack) {
+    return stack->position / STACK_WORD_SIZE;
+}

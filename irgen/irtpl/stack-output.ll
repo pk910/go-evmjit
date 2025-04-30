@@ -6,12 +6,14 @@
 %out_stack_check1 = icmp ult i64 %out_3, {{ mul .Outputs 32 }}
 br i1 %out_stack_check1, label %out_err1, label %out_ok1
 out_err1:
-  ret i32 -10
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
 out_ok1:
 %out_stack_check2 = icmp ugt i64 %out_1, {{ mul (sub .MaxStack .Outputs) 32 }}
 br i1 %out_stack_check2, label %out_err2, label %out_ok2
 out_err2:
-  ret i32 -11
+  store i32 -11, i32* %exitcode_ptr
+  br label %error_return
 out_ok2:
 {{- end }}
 %out_4 = sub i64 %out_3, {{ mul .Outputs 32 }}

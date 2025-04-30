@@ -4,14 +4,19 @@
 {{- end }}
 {{- end }}
 
-{{- define "ircode" }}
+{{- define "irhead" }}
 {{ if .Verbose }}; OP {{ .Id }}: PUSH{{ .DataLen }} {{ hex .Data }}{{- end }}
+{{- end }} 
+
+{{- define "ircode" }}
 %l{{ .Id }}_2 = load i64, i64* %stack_position_ptr, align 8
 {{- if .StackCheck }}
 %l{{ .Id }}_overflow_check = icmp ugt i64 %l{{ .Id }}_2, {{ sub (mul .MaxStack 32) 32 }}
 br i1 %l{{ .Id }}_overflow_check, label %l{{ .Id }}_err_overflow, label %l{{ .Id }}_ok
 l{{ .Id }}_err_overflow:
-  ret i32 -11
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 -11, i32* %exitcode_ptr
+  br label %error_return
 l{{ .Id }}_ok:
 {{- end }}
 %l{{ .Id }}_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_2

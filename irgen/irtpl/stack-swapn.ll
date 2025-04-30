@@ -1,14 +1,19 @@
 {{- define "defcode" }}
 {{- end }}
 
-{{- define "ircode" }}
+{{- define "irhead" }}
 {{ if .Verbose }}; OP {{ .Id }}: SWAP{{ .Position }}{{- end }}
+{{- end }} 
+
+{{- define "ircode" }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
 {{- if .StackCheck }}
 %l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul (add .Position 1) 32 }}
 br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_ok
 l{{ .Id }}_err_underflow:
-ret i32 -10
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
 l{{ .Id }}_ok:
 {{- end }}
 %l{{ .Id }}_2 = alloca [32 x i8], align 16

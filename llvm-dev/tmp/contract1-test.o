@@ -3,16 +3,315 @@ source_filename = "contract1-test.ll"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-%struct.evm_callctx = type { %struct.evm_stack*, i64, i64, i32 (i8*, i8, i8*, i16, i8*, i16)*, i8* }
+%struct.evm_callctx = type { %struct.evm_stack*, i64, i64, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i8* }
 %struct.evm_stack = type { i8*, i64 }
 
 @const_zero32 = local_unnamed_addr constant [32 x i8] zeroinitializer
 @const_data0 = local_unnamed_addr constant [32 x i8] c"\01\02\05\04\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\16\14!"
 @const_data1 = local_unnamed_addr constant [1 x i8] c"\02"
 @const_data2 = local_unnamed_addr constant [8 x i8] c"\11\11\11\11\11\11\11\11"
-@const_data5 = local_unnamed_addr constant [1 x i8] c"\02"
+@const_data5 = local_unnamed_addr constant [1 x i8] c"2"
+@const_data10 = local_unnamed_addr constant [1 x i8] c"2"
+@const_data13 = local_unnamed_addr constant [1 x i8] c"2"
+@const_data15 = local_unnamed_addr constant [1 x i8] c"\02"
 
-define i32 @test(%struct.evm_callctx* noundef %callctx) local_unnamed_addr {
-common.ret:
-  ret i32 -12
+; Function Attrs: argmemonly mustprogress nofree nounwind willreturn
+declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #0
+
+; Function Attrs: mustprogress nofree nosync nounwind readnone speculatable willreturn
+declare i128 @llvm.bswap.i128(i128) #1
+
+; Function Attrs: nofree nosync nounwind
+define i32 @test(%struct.evm_callctx* nocapture noundef %callctx) local_unnamed_addr #2 {
+entry:
+  %stack_alloc = alloca [32768 x i8], align 32
+  %callctx_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 0
+  %pc_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 1
+  %gasleft_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 2
+  %gasleft_val = load i64, i64* %gasleft_ptr, align 4
+  %heap_stack = load %struct.evm_stack*, %struct.evm_stack** %callctx_ptr, align 8
+  %heap_stack_ptr = getelementptr %struct.evm_stack, %struct.evm_stack* %heap_stack, i64 0, i32 0
+  %heap_stack_addr = load i8*, i8** %heap_stack_ptr, align 8
+  %heap_stack_position_ptr = getelementptr %struct.evm_stack, %struct.evm_stack* %heap_stack, i64 0, i32 1
+  %l0_gas2 = icmp ult i64 %gasleft_val, 3
+  br i1 %l0_gas2, label %l0_gaserr, label %l0_gasok
+
+l0_gaserr:                                        ; preds = %entry
+  store i64 0, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l0_gasok:                                         ; preds = %entry
+  %l0_gas4 = add i64 %gasleft_val, -3
+  %l1_gas2 = icmp ult i64 %l0_gas4, 3
+  br i1 %l1_gas2, label %l1_gaserr, label %l1_gasok
+
+l1_gaserr:                                        ; preds = %l0_gasok
+  store i64 33, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l1_gasok:                                         ; preds = %l0_gasok
+  %l1_gas4 = add i64 %gasleft_val, -6
+  %l1_3 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 32
+  %l2_gas2 = icmp ult i64 %l1_gas4, 3
+  br i1 %l2_gas2, label %l2_gaserr, label %l2_gasok
+
+l2_gaserr:                                        ; preds = %l1_gasok
+  store i64 35, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l2_gasok:                                         ; preds = %l1_gasok
+  %l2_gas4 = add i64 %gasleft_val, -9
+  %l2_3 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 64
+  %0 = bitcast i8* %l2_3 to i64*
+  store i64 1229782938247303441, i64* %0, align 32
+  %l2_5 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 72
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 8 dereferenceable(24) %l2_5, i8 0, i64 24, i1 false)
+  %l3_gas2 = icmp ult i64 %l2_gas4, 3
+  br i1 %l3_gas2, label %l3_gaserr, label %l3_gasok
+
+l3_gaserr:                                        ; preds = %l2_gasok
+  store i64 44, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l3_gasok:                                         ; preds = %l2_gasok
+  %l3_gas4 = add i64 %gasleft_val, -12
+  %l3_3 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 96
+  %stack_alloc177178 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 0
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 32 dereferenceable(32) %stack_alloc177178, i8* noundef nonnull align 32 dereferenceable(32) %l2_3, i64 32, i1 false)
+  %l4_gas2 = icmp ult i64 %l3_gas4, 3
+  br i1 %l4_gas2, label %l4_gaserr, label %l4_gasok
+
+l4_gaserr:                                        ; preds = %l3_gasok
+  store i64 45, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l4_gasok:                                         ; preds = %l3_gasok
+  %l4_gas4 = add i64 %gasleft_val, -15
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 32 dereferenceable(32) %l1_3, i8* noundef nonnull align 32 dereferenceable(32) %l2_3, i64 32, i1 false)
+  %l5_gas2 = icmp ult i64 %l4_gas4, 3
+  br i1 %l5_gas2, label %l5_gaserr, label %l5_gasok
+
+l5_gaserr:                                        ; preds = %l4_gasok
+  store i64 46, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l5_gasok:                                         ; preds = %l4_gasok
+  %l5_gas4 = add i64 %gasleft_val, -18
+  store i8 50, i8* %l3_3, align 32
+  %l5_5 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 97
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(31) %l5_5, i8 0, i64 31, i1 false)
+  %l6_gas2 = icmp ult i64 %l5_gas4, 8
+  br i1 %l6_gas2, label %l6_gaserr, label %l6_ok
+
+l6_gaserr:                                        ; preds = %l5_gasok
+  store i64 48, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l6_ok:                                            ; preds = %l5_gasok
+  %l6_gas4 = add i64 %gasleft_val, -26
+  %l6_aptr2 = bitcast i8* %l3_3 to i256*
+  %l6_a = load i256, i256* %l6_aptr2, align 32
+  %l6_a_trunc = trunc i256 %l6_a to i64
+  store i64 48, i64* %pc_ptr, align 4
+  %cond99 = icmp eq i64 %l6_a_trunc, 50
+  br i1 %cond99, label %br_50, label %common.ret
+
+br_50:                                            ; preds = %l6_ok, %l14_jump
+  %stack_gasleft_ptr.0101 = phi i64 [ %l14_gas4, %l14_jump ], [ %l6_gas4, %l6_ok ]
+  %stack_position_ptr.0100 = phi i64 [ %l9_6, %l14_jump ], [ 96, %l6_ok ]
+  %l8_gas2 = icmp eq i64 %stack_gasleft_ptr.0101, 0
+  br i1 %l8_gas2, label %l8_gaserr, label %l8_gasok
+
+l8_gaserr:                                        ; preds = %br_50
+  store i64 50, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l8_gasok:                                         ; preds = %br_50
+  %l8_gas4 = add i64 %stack_gasleft_ptr.0101, -1
+  %l9_gas2 = icmp ult i64 %l8_gas4, 2
+  br i1 %l9_gas2, label %l9_gaserr, label %l9_ok
+
+l9_gaserr:                                        ; preds = %l8_gasok
+  store i64 51, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l9_ok:                                            ; preds = %l8_gasok
+  %l9_gas4 = add i64 %stack_gasleft_ptr.0101, -3
+  %l9_2 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 %stack_position_ptr.0100
+  %l9_aptr2 = bitcast i8* %l9_2 to i256*
+  %l9_4 = zext i64 %l9_gas4 to i256
+  store i256 %l9_4, i256* %l9_aptr2, align 32
+  %l9_6 = add nuw nsw i64 %stack_position_ptr.0100, 32
+  %l10_gas2 = icmp ult i64 %l9_gas4, 3
+  br i1 %l10_gas2, label %l10_gaserr, label %l10_ok
+
+l10_gaserr:                                       ; preds = %l9_ok
+  store i64 52, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l10_ok:                                           ; preds = %l9_ok
+  %l10_gas4 = add i64 %stack_gasleft_ptr.0101, -6
+  %l10_3 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 %l9_6
+  store i8 50, i8* %l10_3, align 32
+  %l10_5 = getelementptr i8, i8* %l10_3, i64 1
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(31) %l10_5, i8 0, i64 31, i1 false)
+  %l10_6 = add nuw nsw i64 %stack_position_ptr.0100, 64
+  %l11_gas2 = icmp ult i64 %l10_gas4, 2
+  br i1 %l11_gas2, label %l11_gaserr, label %l11_gasok
+
+l11_gaserr:                                       ; preds = %l10_ok
+  store i64 54, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l11_gasok:                                        ; preds = %l10_ok
+  %l11_gas4 = add i64 %stack_gasleft_ptr.0101, -8
+  %l11_overflow_check = icmp ugt i64 %stack_position_ptr.0100, 32672
+  br i1 %l11_overflow_check, label %l11_err_overflow, label %l11_ok
+
+l11_err_overflow:                                 ; preds = %l11_gasok
+  store i64 54, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l11_ok:                                           ; preds = %l11_gasok
+  %l11_2 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 %l10_6
+  %l12_gas2 = icmp ult i64 %l11_gas4, 3
+  br i1 %l12_gas2, label %l12_gaserr, label %l12_gasok
+
+l12_gaserr:                                       ; preds = %l11_ok
+  store i64 55, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l12_gasok:                                        ; preds = %l11_ok
+  %l11_4 = zext i64 %l11_gas4 to i256
+  %l11_6 = add nuw nsw i64 %stack_position_ptr.0100, 96
+  %l12_gas4 = add i64 %stack_gasleft_ptr.0101, -11
+  %l12_2 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 %l11_6
+  %l12_aptr = getelementptr inbounds i8, i8* %l12_2, i64 -32
+  %l12_bptr = getelementptr inbounds i8, i8* %l12_2, i64 -64
+  %l12_aptr2 = bitcast i8* %l12_aptr to i256*
+  %l12_bptr2 = bitcast i8* %l12_bptr to i256*
+  %l12_b = load i256, i256* %l12_bptr2, align 32
+  %l12_cmp = icmp ult i256 %l12_b, %l11_4
+  %l12_res = zext i1 %l12_cmp to i256
+  store i256 %l12_res, i256* %l12_bptr2, align 32
+  %l13_gas2 = icmp ult i64 %l12_gas4, 3
+  br i1 %l13_gas2, label %l13_gaserr, label %l13_gasok
+
+l13_gaserr:                                       ; preds = %l12_gasok
+  store i64 56, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l13_gasok:                                        ; preds = %l12_gasok
+  %l13_gas4 = add i64 %stack_gasleft_ptr.0101, -14
+  store i8 50, i8* %l11_2, align 32
+  %l13_5 = getelementptr i8, i8* %l11_2, i64 1
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(31) %l13_5, i8 0, i64 31, i1 false)
+  %l14_gas2 = icmp ult i64 %l13_gas4, 10
+  br i1 %l14_gas2, label %l14_gaserr, label %l14_gasok
+
+l14_gaserr:                                       ; preds = %l13_gasok
+  store i64 58, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l14_gasok:                                        ; preds = %l13_gasok
+  %l14_gas4 = add i64 %stack_gasleft_ptr.0101, -24
+  br i1 %l12_cmp, label %l14_jump, label %l14_skip
+
+l14_jump:                                         ; preds = %l14_gasok
+  %l14_a = load i256, i256* %l12_aptr2, align 32
+  %l14_a_trunc = trunc i256 %l14_a to i64
+  store i64 58, i64* %pc_ptr, align 4
+  %cond = icmp eq i64 %l14_a_trunc, 50
+  br i1 %cond, label %br_50, label %common.ret
+
+l14_skip:                                         ; preds = %l14_gasok
+  %1 = zext i64 %l9_gas4 to i128
+  %l15_gas2 = icmp ult i64 %l14_gas4, 3
+  br i1 %l15_gas2, label %l15_gaserr, label %l15_gasok
+
+l15_gaserr:                                       ; preds = %l14_skip
+  store i64 59, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l15_gasok:                                        ; preds = %l14_skip
+  %l15_gas4 = add i64 %stack_gasleft_ptr.0101, -27
+  store i8 2, i8* %l10_3, align 32
+  call void @llvm.memset.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(31) %l10_5, i8 0, i64 31, i1 false)
+  store i64 61, i64* %pc_ptr, align 4
+  %out_1 = load i64, i64* %heap_stack_position_ptr, align 8
+  %out_2 = getelementptr inbounds i8, i8* %heap_stack_addr, i64 %out_1
+  %out_stack_check1 = icmp ult i64 %stack_position_ptr.0100, 64
+  br i1 %out_stack_check1, label %common.ret, label %out_ok1
+
+out_ok1:                                          ; preds = %l15_gasok
+  %out_stack_check2 = icmp ugt i64 %out_1, 8064
+  br i1 %out_stack_check2, label %common.ret, label %out_ok2
+
+common.ret:                                       ; preds = %l14_jump, %l6_ok, %l0_gaserr, %l1_gaserr, %l2_gaserr, %l3_gaserr, %l4_gaserr, %l5_gaserr, %l6_gaserr, %l8_gaserr, %l9_gaserr, %l10_gaserr, %l11_gaserr, %l11_err_overflow, %l12_gaserr, %l13_gaserr, %l14_gaserr, %l15_gaserr, %l15_gasok, %out_ok1, %out_ok2
+  %storemerge33 = phi i64 [ %l15_gas4, %out_ok2 ], [ %gasleft_val, %l0_gaserr ], [ %l0_gas4, %l1_gaserr ], [ %l1_gas4, %l2_gaserr ], [ %l2_gas4, %l3_gaserr ], [ %l3_gas4, %l4_gaserr ], [ %l4_gas4, %l5_gaserr ], [ %l5_gas4, %l6_gaserr ], [ 0, %l8_gaserr ], [ %l8_gas4, %l9_gaserr ], [ %l9_gas4, %l10_gaserr ], [ %l10_gas4, %l11_gaserr ], [ %l11_gas4, %l11_err_overflow ], [ %l11_gas4, %l12_gaserr ], [ %l12_gas4, %l13_gaserr ], [ %l13_gas4, %l14_gaserr ], [ %l14_gas4, %l15_gaserr ], [ %l15_gas4, %l15_gasok ], [ %l15_gas4, %out_ok1 ], [ %l6_gas4, %l6_ok ], [ %l14_gas4, %l14_jump ]
+  %common.ret.op = phi i32 [ 0, %out_ok2 ], [ -13, %l0_gaserr ], [ -13, %l1_gaserr ], [ -13, %l2_gaserr ], [ -13, %l3_gaserr ], [ -13, %l4_gaserr ], [ -13, %l5_gaserr ], [ -13, %l6_gaserr ], [ -13, %l8_gaserr ], [ -13, %l9_gaserr ], [ -13, %l10_gaserr ], [ -13, %l11_gaserr ], [ -11, %l11_err_overflow ], [ -13, %l12_gaserr ], [ -13, %l13_gaserr ], [ -13, %l14_gaserr ], [ -13, %l15_gaserr ], [ -10, %l15_gasok ], [ -11, %out_ok1 ], [ -12, %l6_ok ], [ -12, %l14_jump ]
+  store i64 %storemerge33, i64* %gasleft_ptr, align 4
+  ret i32 %common.ret.op
+
+out_ok2:                                          ; preds = %out_ok1
+  %out_4 = add nsw i64 %stack_position_ptr.0100, -64
+  %out_5 = getelementptr inbounds [32768 x i8], [32768 x i8]* %stack_alloc, i64 0, i64 %out_4
+  %out_l0_src_ptr_lo = bitcast i8* %out_5 to i128*
+  %out_l0_src_ptr_hi = getelementptr i8, i8* %out_5, i64 16
+  %2 = bitcast i8* %out_l0_src_ptr_hi to i128*
+  %out_l0_dst_ptr_lo = bitcast i8* %out_2 to i128*
+  %out_l0_dst_ptr_hi = getelementptr i8, i8* %out_2, i64 16
+  %3 = bitcast i8* %out_l0_dst_ptr_hi to i128*
+  %out_l0_word_lo = load i128, i128* %out_l0_src_ptr_lo, align 32
+  %out_l0_word_hi = load i128, i128* %2, align 16
+  %out_l0_reversed_lo = tail call i128 @llvm.bswap.i128(i128 %out_l0_word_hi)
+  %out_l0_reversed_hi = tail call i128 @llvm.bswap.i128(i128 %out_l0_word_lo)
+  store i128 %out_l0_reversed_lo, i128* %out_l0_dst_ptr_lo, align 4
+  store i128 %out_l0_reversed_hi, i128* %3, align 4
+  %out_l1_src_ptr = getelementptr i8, i8* %out_5, i64 32
+  %out_l1_dst_ptr = getelementptr i8, i8* %out_2, i64 32
+  %out_l1_src_ptr_lo = bitcast i8* %out_l1_src_ptr to i128*
+  %out_l1_src_ptr_hi = getelementptr i8, i8* %out_5, i64 48
+  %4 = bitcast i8* %out_l1_src_ptr_hi to i128*
+  %out_l1_dst_ptr_lo = bitcast i8* %out_l1_dst_ptr to i128*
+  %out_l1_dst_ptr_hi = getelementptr i8, i8* %out_l1_dst_ptr, i64 16
+  %5 = bitcast i8* %out_l1_dst_ptr_hi to i128*
+  %out_l1_word_lo = load i128, i128* %out_l1_src_ptr_lo, align 32
+  %out_l1_word_hi = load i128, i128* %4, align 16
+  %out_l1_reversed_lo = tail call i128 @llvm.bswap.i128(i128 %out_l1_word_hi)
+  %out_l1_reversed_hi = tail call i128 @llvm.bswap.i128(i128 %out_l1_word_lo)
+  store i128 %out_l1_reversed_lo, i128* %out_l1_dst_ptr_lo, align 4
+  store i128 %out_l1_reversed_hi, i128* %5, align 4
+  %out_l2_dst_ptr = getelementptr i8, i8* %out_2, i64 64
+  %out_l2_dst_ptr_lo = bitcast i8* %out_l2_dst_ptr to i128*
+  %out_l2_dst_ptr_hi = getelementptr i8, i8* %out_l2_dst_ptr, i64 16
+  %6 = bitcast i8* %out_l2_dst_ptr_hi to i128*
+  %out_l2_reversed_hi = tail call i128 @llvm.bswap.i128(i128 %1)
+  store i128 0, i128* %out_l2_dst_ptr_lo, align 4
+  store i128 %out_l2_reversed_hi, i128* %6, align 4
+  %out_l3_src_ptr = getelementptr i8, i8* %out_5, i64 96
+  %out_l3_dst_ptr = getelementptr i8, i8* %out_2, i64 96
+  %out_l3_src_ptr_lo = bitcast i8* %out_l3_src_ptr to i128*
+  %out_l3_src_ptr_hi = getelementptr i8, i8* %out_5, i64 112
+  %7 = bitcast i8* %out_l3_src_ptr_hi to i128*
+  %out_l3_dst_ptr_lo = bitcast i8* %out_l3_dst_ptr to i128*
+  %out_l3_dst_ptr_hi = getelementptr i8, i8* %out_l3_dst_ptr, i64 16
+  %8 = bitcast i8* %out_l3_dst_ptr_hi to i128*
+  %out_l3_word_lo = load i128, i128* %out_l3_src_ptr_lo, align 32
+  %out_l3_word_hi = load i128, i128* %7, align 16
+  %out_l3_reversed_lo = tail call i128 @llvm.bswap.i128(i128 %out_l3_word_hi)
+  %out_l3_reversed_hi = tail call i128 @llvm.bswap.i128(i128 %out_l3_word_lo)
+  store i128 %out_l3_reversed_lo, i128* %out_l3_dst_ptr_lo, align 4
+  store i128 %out_l3_reversed_hi, i128* %8, align 4
+  %out_6 = add nuw nsw i64 %out_1, 128
+  store i64 %out_6, i64* %heap_stack_position_ptr, align 8
+  br label %common.ret
 }
+
+; Function Attrs: argmemonly nofree nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i1 immarg) #3
+
+attributes #0 = { argmemonly mustprogress nofree nounwind willreturn }
+attributes #1 = { mustprogress nofree nosync nounwind readnone speculatable willreturn }
+attributes #2 = { nofree nosync nounwind }
+attributes #3 = { argmemonly nofree nounwind willreturn writeonly }

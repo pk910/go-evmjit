@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/pk910/go-eofjit/irgen"
 	"github.com/pk910/go-eofjit/llvm"
@@ -21,28 +22,39 @@ func main() {
 	//irf.AppendMul()
 	irf.AppendShl()
 	irf.AppendJumpDest()
-	irf.AppendHighOpcode(0x05, 2, 1)
+	//irf.AppendHighOpcode(0x05, 2, 1)
 	//irf.AppendDiv()
 	//irf.AppendDupN(2)
 	//irf.AppendPop()
-	irf.AppendPc()
-	//irf.AppendPushN(1, []uint8{0x02})
+
+	irf.AppendGas()
+	irf.AppendPushN(1, []uint8{50})
+	irf.AppendGas()
+	irf.AppendGt()
+	irf.AppendPushN(1, []uint8{50})
+	irf.AppendJumpI()
+
+	irf.AppendPushN(1, []uint8{0x02})
 	//irf.AppendMul()
 	//irf.AppendSwapN(1)
-	irf.SetInputOutputs(0, 3)
+	irf.AppendStop()
+	irf.SetInputOutputs(0, 4)
 
 	irb := irgen.NewIRBuilder()
 	irb.AddFunction(irf)
 	llvmIR := irb.String()
-	fmt.Println(llvmIR)
+
+	os.WriteFile("./contract1-test.ll", []byte(llvmIR), 0644)
+	//fmt.Println(llvmIR)
 
 	mod := llvm.NewModule()
 	mod.LoadIR(llvmIR)
-	mod.Call("test")
-	mod.PrintStack(1)
-	mod.PrintStack(2)
-	mod.PrintStack(3)
-	mod.PrintStack(4)
+	mod.Call("test", 1000)
+
+	fmt.Printf("Stack size: %d\n", mod.GetStackSize())
+	for i := 1; i <= mod.GetStackSize(); i++ {
+		mod.PrintStack(i)
+	}
 
 	modBytes, err := mod.Marshal()
 	if err != nil {
@@ -50,15 +62,4 @@ func main() {
 	}
 
 	fmt.Printf("Module IR bytecode: %d bytes\n", len(modBytes))
-	fmt.Println(string(llvmIR))
-
-	mod.Dispose()
-
-	mod = llvm.NewModule()
-	mod.Unmarshal(modBytes)
-	mod.Call("test")
-	mod.PrintStack(1)
-	mod.PrintStack(2)
-	mod.PrintStack(3)
-	mod.PrintStack(4)
 }

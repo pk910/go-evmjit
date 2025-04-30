@@ -3,5 +3,6 @@
 
 {{- define "ircode" }}
 {{ if .Verbose }}; OP {{ .Id }}: STOP{{- end }}
-ret i32 0
+store i64 {{ .Pc }}, i64* %pc_ptr
+br label %graceful_return
 {{ end }}

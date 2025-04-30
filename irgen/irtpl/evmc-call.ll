@@ -44,8 +44,9 @@ l{{ $id }}_err_overflow:
 l{{ $id }}_out_ok1:
 {{- end }}
 {{- end }}
+store i64 {{ .Pc }}, i64* %pc_ptr
 %l{{ $id }}_opcode_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
-%l{{ $id }}_opcode_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16)*, i32 (i8*, i8, i8*, i16, i8*, i16)** %l{{ $id }}_opcode_fn_ptr_addr, align 8
+%l{{ $id }}_opcode_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i16*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i16*)** %l{{ $id }}_opcode_fn_ptr_addr, align 8
 %l{{ $id }}_callctx_ptr_arg = bitcast %struct.evm_callctx* %callctx to i8* ; Cast callctx to i8* for the function signature
 %l{{ $id }}_call_ret = call i32 %l{{ $id }}_opcode_fn_ptr(
     i8* %l{{ $id }}_callctx_ptr_arg,
@@ -53,7 +54,8 @@ l{{ $id }}_out_ok1:
     i8* {{ if gt .Inputs 0 }}%l{{ $id }}_in_buffer_alloca{{ else }}null{{ end }},
     i16 {{ mul .Inputs 32 }},
     i8* {{ if gt .Outputs 0 }}%l{{ $id }}_out_buffer_alloca{{ else }}null{{ end }},
-    i16 {{ mul .Outputs 32 }}
+    i16 {{ mul .Outputs 32 }},
+    i16* %stack_gasleft_ptr
 )
 %l{{ $id }}_call_ret_check = icmp ne i32 %l{{ $id }}_call_ret, 0
 br i1 %l{{ $id }}_call_ret_check, label %l{{ $id }}_err_callback, label %l{{ $id }}_callback_ok

@@ -68,3 +68,8 @@ int32_t callctx_switch_branch(evm_callctx *callctx, uint64_t pc) {
             return 0;
     }
 }
+
+int callctx_get_gasleft(evm_callctx *callctx) {
+    assert(callctx != NULL);
+    return callctx->gas;
+}

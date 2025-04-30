@@ -21,6 +21,6 @@ int stack_dupn(evm_stack *stack, int n);
 int stack_swapn(evm_stack *stack, int n);
 int stack_pop(evm_stack *stack);
 int stack_print_item(evm_stack *stack, int n);
-
+int stack_get_size(evm_stack *stack);
 
 #endif
