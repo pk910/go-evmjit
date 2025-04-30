@@ -10,19 +10,28 @@ import (
 
 // IRFunction represents a function in the LLVM IR code which contains a EOF code section.
 type IRFunction struct {
-	name       string
-	opcodes    []IROpcode
-	pccount    uint32
-	maxstack   uint16
-	heapstack  uint16
-	inputs     uint8
-	outputs    uint8
-	verbose    bool
-	stackcheck bool
+	name        string
+	branches    []*IRBranch
+	branchCount uint32
+	opcount     uint32
+	pccount     uint32
+	maxstack    uint16
+	heapstack   uint16
+	inputs      uint8
+	outputs     uint8
+	verbose     bool
+	stackcheck  bool
+	noinitjump  bool
+}
+
+type IRBranch struct {
+	pc      uint32
+	opcodes []*IROpcode
 }
 
 type IROpcode struct {
 	name  string
+	id    uint32
 	pc    uint32
 	tpl   *template.Template
 	model map[string]interface{}
@@ -31,15 +40,16 @@ type IROpcode struct {
 // NewIRFunction creates a new IRFunction.
 func NewIRFunction(name string, verbose bool) *IRFunction {
 	return &IRFunction{
-		name:       name,
-		opcodes:    []IROpcode{},
-		pccount:    0,
-		maxstack:   256,
-		heapstack:  256,
-		inputs:     0,
-		outputs:    0,
-		verbose:    verbose,
-		stackcheck: true,
+		name:        name,
+		branches:    []*IRBranch{},
+		branchCount: 0,
+		pccount:     0,
+		maxstack:    256,
+		heapstack:   256,
+		inputs:      0,
+		outputs:     0,
+		verbose:     verbose,
+		stackcheck:  true,
 	}
 }
 
@@ -48,42 +58,40 @@ func (irf *IRFunction) SetInputOutputs(inputs, outputs uint8) {
 	irf.outputs = outputs
 }
 
-func (irf *IRFunction) AppendOpcode(opcode uint8, data []uint8) (uint8, error) {
-	switch opcode {
-	case 0x00:
-		return 0, nil
-	case 0x01:
-		return 0, nil
-	default:
-		return 0, fmt.Errorf("unknown opcode: %d", opcode)
-	}
-}
-
 func (irf *IRFunction) String() string {
 	fncode := bytes.Buffer{}
 	defcode := bytes.Buffer{}
 	opscode := bytes.Buffer{}
-	for index, opcode := range irf.opcodes {
-		model := map[string]interface{}{
-			"Id":         index,
-			"Pc":         opcode.pc,
-			"Verbose":    irf.verbose,
-			"StackCheck": irf.stackcheck,
-			"MaxStack":   uint64(irf.maxstack),
+	for _, branch := range irf.branches {
+		if branch.pc > 0 || !irf.noinitjump {
+			opscode.WriteString(fmt.Sprintf(`
+br label %%br_%d
+br_%d:
+`, branch.pc, branch.pc))
 		}
-		if opcode.model != nil {
-			for k, v := range opcode.model {
-				model[k] = v
+
+		for _, opcode := range branch.opcodes {
+			model := map[string]interface{}{
+				"Id":         opcode.id,
+				"Pc":         opcode.pc,
+				"Verbose":    irf.verbose,
+				"StackCheck": irf.stackcheck,
+				"MaxStack":   uint64(irf.maxstack),
 			}
+			if opcode.model != nil {
+				for k, v := range opcode.model {
+					model[k] = v
+				}
+			}
+			opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
+			opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
 		}
-		opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
-		opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
 	}
 
 	fncode.WriteString(defcode.String())
 	fncode.WriteString(fmt.Sprintf(`
 
-define i32 @%s(%%struct.evm_stack* noundef %%stack) {
+define i32 @%s(%%struct.evm_callctx* noundef %%callctx) {
 entry:
 %%zero32_ptr = bitcast [32 x i8]* @const_zero32 to i8*
 %%stack_alloc = alloca [%d x i8], align 32
@@ -91,13 +99,16 @@ entry:
 %%stack_position_ptr = alloca i64, align 4
 store i64 0, i64* %%stack_position_ptr
 
-%%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%stack, i32 0, i32 0
+%%callctx_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 0
+%%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
+
+%%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 0
 %%heap_stack_addr = load i8*, i8** %%heap_stack_ptr, align 8
-%%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%stack, i32 0, i32 1
+%%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 1
 `, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
 
+	// load inputs from heap stack to local stack
 	if irf.inputs > 0 {
-		// load inputs from heap stack to local stack
 		tpl := irtpl.GetTemplate("stack-input.ll")
 		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
 			"Inputs":     uint64(irf.inputs),
@@ -106,10 +117,27 @@ store i64 0, i64* %%stack_position_ptr
 		})
 	}
 
+	// generate jumptable
+	tpl := irtpl.GetTemplate("flow-jumptable.ll")
+	branchPcs := []uint64{}
+	hasBranches := false
+	for _, branch := range irf.branches {
+		if branch.pc == 0 && irf.noinitjump {
+			continue
+		}
+		branchPcs = append(branchPcs, uint64(branch.pc))
+		hasBranches = true
+	}
+	tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+		"Branches":    branchPcs,
+		"HasBranches": hasBranches,
+	})
+
+	// add opcodes
 	fncode.WriteString(opscode.String())
 
+	// load outputs from local stack to heap stack
 	if irf.outputs > 0 {
-		// load outputs from local stack to heap stack
 		tpl := irtpl.GetTemplate("stack-output.ll")
 		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
 			"Outputs":    uint64(irf.outputs),
@@ -127,15 +155,27 @@ ret i32 0
 }
 
 func (irf *IRFunction) appendOpcode(name string, pccount uint8, model map[string]interface{}) error {
+	if irf.branchCount == 0 {
+		irf.branches = append(irf.branches, &IRBranch{
+			pc:      0,
+			opcodes: []*IROpcode{},
+		})
+		irf.branchCount++
+		irf.noinitjump = true
+	}
+
+	branch := irf.branches[irf.branchCount-1]
 	tpl := irtpl.GetTemplate(name)
-	opcode := IROpcode{
+	opcode := &IROpcode{
+		id:    irf.opcount,
 		pc:    irf.pccount,
 		name:  name,
 		tpl:   tpl,
 		model: model,
 	}
-	irf.opcodes = append(irf.opcodes, opcode)
+	branch.opcodes = append(branch.opcodes, opcode)
 	irf.pccount += uint32(pccount)
+	irf.opcount++
 	return nil
 }
 
@@ -232,4 +272,38 @@ func (irf *IRFunction) AppendShr() error {
 
 func (irf *IRFunction) AppendSar() error {
 	return irf.appendOpcode("logic-sar.ll", 1, nil)
+}
+
+func (irf *IRFunction) AppendHighOpcode(opcode, inputs, outputs uint8) error {
+	return irf.appendOpcode("evmc-call.ll", 1, map[string]interface{}{
+		"Name":    fmt.Sprintf("c%d", opcode),
+		"Opcode":  uint64(opcode),
+		"Inputs":  uint64(inputs),
+		"Outputs": uint64(outputs),
+	})
+}
+
+func (irf *IRFunction) AppendJumpDest() error {
+	irf.branches = append(irf.branches, &IRBranch{
+		pc:      irf.pccount,
+		opcodes: []*IROpcode{},
+	})
+	irf.branchCount++
+	return irf.appendOpcode("flow-jumpdest.ll", 1, nil)
+}
+
+func (irf *IRFunction) AppendJump() error {
+	return irf.appendOpcode("flow-jump.ll", 1, nil)
+}
+
+func (irf *IRFunction) AppendJumpI() error {
+	return irf.appendOpcode("flow-jumpi.ll", 1, nil)
+}
+
+func (irf *IRFunction) AppendStop() error {
+	return irf.appendOpcode("flow-stop.ll", 1, nil)
+}
+
+func (irf *IRFunction) AppendPc() error {
+	return irf.appendOpcode("flow-pc.ll", 1, nil)
 }

@@ -6,6 +6,7 @@ tmpout=./tmp
 
 clang -O2 -S -emit-llvm $evmc/evm_stack.c -o $evmll/evm_stack.ll
 clang -O2 -S -emit-llvm $evmc/evm_math.c -o $evmll/evm_math.ll
+clang -O2 -S -emit-llvm $evmc/evm_callctx.c -o $evmll/evm_callctx.ll
 
 llvm-link $evmll/evm_stack.ll $evmll/evm_math.ll contract1-dev.ll -o $tmpout/combined.ll
 clang -O2 -S -emit-llvm $tmpout/combined.ll -o $tmpout/combined.ll

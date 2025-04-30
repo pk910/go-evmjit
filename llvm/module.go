@@ -5,6 +5,8 @@ package llvm
 #cgo LDFLAGS: -L/usr/lib/llvm-14/lib -lLLVM
 
 #include "evm-c/evm_stack.c"
+#include "evm-c/evm_callctx.c"
+#include "evm-c/evm_math.c"
 
 #include <stdlib.h>
 #include <string.h>
@@ -41,10 +43,9 @@ LLVMExecutionEngineRef createJIT(LLVMModuleRef module) {
 }
 
 typedef int32_t (*jit_func_ptr)(void *);
-int32_t call_jit_func(jit_func_ptr fn, struct evm_stack *stack) {
-	printf("Calling JIT function\n StackPos: %d\n", stack->position);
-
-    return fn(stack);
+int32_t call_jit_func(jit_func_ptr fn, struct evm_callctx *callctx) {
+	printf("Calling JIT function\n StackPos: %d\n", callctx->stack->position);
+    return fn(callctx);
 }
 
 */
@@ -104,6 +105,9 @@ func (m *Module) Call(name string) (int, error) {
 	}
 	m.stack = stack
 
+	callctx := C.callctx_init(stack)
+	defer C.callctx_free(callctx)
+
 	funcName := C.CString(name)
 	defer C.free(unsafe.Pointer(funcName))
 
@@ -115,7 +119,7 @@ func (m *Module) Call(name string) (int, error) {
 	fmt.Printf("jit function pointer: %x\n", fnAddr)
 
 	testFuncPtr := (C.jit_func_ptr)(unsafe.Pointer(uintptr(fnAddr)))
-	retVal := C.call_jit_func(testFuncPtr, stack)
+	retVal := C.call_jit_func(testFuncPtr, callctx)
 
 	fmt.Printf("Result from @test: %d\n", retVal)
 
