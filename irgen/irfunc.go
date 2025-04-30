@@ -3,6 +3,7 @@ package irgen
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 
 	"github.com/pk910/go-eofjit/irgen/irtpl"
 )
@@ -10,9 +11,8 @@ import (
 // IRFunction represents a function in the LLVM IR code which contains a EOF code section.
 type IRFunction struct {
 	name       string
-	defcode    bytes.Buffer
-	fncode     bytes.Buffer
-	opcount    uint32
+	opcodes    []IROpcode
+	pccount    uint32
 	maxstack   uint16
 	heapstack  uint16
 	inputs     uint8
@@ -21,13 +21,19 @@ type IRFunction struct {
 	stackcheck bool
 }
 
+type IROpcode struct {
+	name  string
+	pc    uint32
+	tpl   *template.Template
+	model map[string]interface{}
+}
+
 // NewIRFunction creates a new IRFunction.
 func NewIRFunction(name string, verbose bool) *IRFunction {
 	return &IRFunction{
 		name:       name,
-		defcode:    bytes.Buffer{},
-		fncode:     bytes.Buffer{},
-		opcount:    0,
+		opcodes:    []IROpcode{},
+		pccount:    0,
 		maxstack:   256,
 		heapstack:  256,
 		inputs:     0,
@@ -55,7 +61,26 @@ func (irf *IRFunction) AppendOpcode(opcode uint8, data []uint8) (uint8, error) {
 
 func (irf *IRFunction) String() string {
 	fncode := bytes.Buffer{}
-	fncode.WriteString(irf.defcode.String())
+	defcode := bytes.Buffer{}
+	opscode := bytes.Buffer{}
+	for index, opcode := range irf.opcodes {
+		model := map[string]interface{}{
+			"Id":         index,
+			"Pc":         opcode.pc,
+			"Verbose":    irf.verbose,
+			"StackCheck": irf.stackcheck,
+			"MaxStack":   uint64(irf.maxstack),
+		}
+		if opcode.model != nil {
+			for k, v := range opcode.model {
+				model[k] = v
+			}
+		}
+		opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
+		opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
+	}
+
+	fncode.WriteString(defcode.String())
 	fncode.WriteString(fmt.Sprintf(`
 
 define i32 @%s(%%struct.evm_stack* noundef %%stack) {
@@ -81,7 +106,7 @@ store i64 0, i64* %%stack_position_ptr
 		})
 	}
 
-	fncode.WriteString(irf.fncode.String())
+	fncode.WriteString(opscode.String())
 
 	if irf.outputs > 0 {
 		// load outputs from local stack to heap stack
@@ -101,213 +126,110 @@ ret i32 0
 	return fncode.String()
 }
 
-func (irf *IRFunction) appendTemplate(name string, model map[string]interface{}) error {
+func (irf *IRFunction) appendOpcode(name string, pccount uint8, model map[string]interface{}) error {
 	tpl := irtpl.GetTemplate(name)
-	tpl.ExecuteTemplate(&irf.defcode, "defcode", model)
-	tpl.ExecuteTemplate(&irf.fncode, "ircode", model)
+	opcode := IROpcode{
+		pc:    irf.pccount,
+		name:  name,
+		tpl:   tpl,
+		model: model,
+	}
+	irf.opcodes = append(irf.opcodes, opcode)
+	irf.pccount += uint32(pccount)
 	return nil
 }
 
 func (irf *IRFunction) AppendPushN(n uint8, data []uint8) error {
-	irf.opcount++
-	return irf.appendTemplate("stack-pushn.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"DataLen":    uint64(n),
-		"Data":       data,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-		"MaxStack":   uint64(irf.maxstack),
+	return irf.appendOpcode("stack-pushn.ll", 1+n, map[string]interface{}{
+		"DataLen": uint64(n),
+		"Data":    data,
 	})
 }
 
 func (irf *IRFunction) AppendDupN(n uint8) error {
-	irf.opcount++
-	return irf.appendTemplate("stack-dupn.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Position":   uint64(n),
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-		"MaxStack":   uint64(irf.maxstack),
+	return irf.appendOpcode("stack-dupn.ll", 1, map[string]interface{}{
+		"Position": uint64(n),
 	})
 }
 
 func (irf *IRFunction) AppendSwapN(n uint8) error {
-	irf.opcount++
-	return irf.appendTemplate("stack-swapn.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Position":   uint64(n),
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
+	return irf.appendOpcode("stack-swapn.ll", 1, map[string]interface{}{
+		"Position": uint64(n),
 	})
 }
 
 func (irf *IRFunction) AppendPop() error {
-	irf.opcount++
-	return irf.appendTemplate("stack-pop.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("stack-pop.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendAdd() error {
-	irf.opcount++
-	return irf.appendTemplate("math-add.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("math-add.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendSub() error {
-	irf.opcount++
-	return irf.appendTemplate("math-sub.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("math-sub.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendMul() error {
-	irf.opcount++
-	return irf.appendTemplate("math-mul.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("math-mul.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendDiv() error {
-	irf.opcount++
-	return irf.appendTemplate("math-div.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("math-div.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendLt() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-lt.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-lt.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendGt() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-gt.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-gt.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendSlt() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-slt.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-slt.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendSgt() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-sgt.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-sgt.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendEq() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-eq.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-eq.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendIsZero() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-iszero.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-iszero.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendAnd() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-and.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-and.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendOr() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-or.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-or.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendXor() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-xor.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-xor.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendNot() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-not.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-not.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendByte() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-byte.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-byte.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendShl() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-shl.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-shl.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendShr() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-shr.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-shr.ll", 1, nil)
 }
 
 func (irf *IRFunction) AppendSar() error {
-	irf.opcount++
-	return irf.appendTemplate("logic-sar.ll", map[string]interface{}{
-		"Id":         irf.opcount,
-		"Verbose":    irf.verbose,
-		"StackCheck": irf.stackcheck,
-	})
+	return irf.appendOpcode("logic-sar.ll", 1, nil)
 }
