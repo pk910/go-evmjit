@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, int *gasleft);
+int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, uint64_t *gasleft);
 
 evm_callctx *callctx_init(evm_stack *stack, int gaslimit) {
     evm_callctx *ctx = (evm_callctx *)malloc(sizeof(evm_callctx));
@@ -37,7 +37,15 @@ uint64_t callctx_get_gas(evm_callctx *callctx) {
     return callctx->gas;
 }
 
-int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, int *gasleft) {
+int callctx_check_gas(uint64_t *gasleft, uint64_t gas) {
+    if (*gasleft < gas) {
+        return -13;
+    }
+    *gasleft -= gas;
+    return 0;
+}
+
+int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, uint64_t *gasleft) {
     assert(callctx != NULL);
 
     printf("EVM-C [OP: %d", opcode);
@@ -55,10 +63,25 @@ int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned
 
     int res = 0;
     switch (opcode) {
-        case 0x04: res = evm_math_div(inputs + 32, inputs, outputs); break;
-        case 0x05: res = evm_math_sdiv(inputs + 32, inputs, outputs); break;
-        case 0x06: res = evm_math_mod(inputs + 32, inputs, outputs); break;
-        case 0x07: res = evm_math_smod(inputs + 32, inputs, outputs); break;
+        case 0x04:
+            if (res = callctx_check_gas(gasleft, 5) == 0)
+                res = evm_math_div(inputs + 32, inputs, outputs);
+            break;
+        case 0x05:
+            if (res = callctx_check_gas(gasleft, 5) == 0)
+                res = evm_math_sdiv(inputs + 32, inputs, outputs);
+            break;
+        case 0x06:
+            if (res = callctx_check_gas(gasleft, 5) == 0)
+                res = evm_math_mod(inputs + 32, inputs, outputs);
+            break;
+        case 0x07:
+            if (res = callctx_check_gas(gasleft, 5) == 0)
+                res = evm_math_smod(inputs + 32, inputs, outputs);
+            break;
+        case 0x0A:
+            res = evm_math_exp(inputs + 32, inputs, outputs, gasleft);
+            break;
         default:
             res = -1;
     }
@@ -69,7 +92,8 @@ int callctx_opcode_callback(evm_callctx *callctx, unsigned char opcode, unsigned
             printf("%02x", outputs[i]);
         }
     }
+    printf(" res: %d\n", res);
     printf("\n");
 
-    return 0;
+    return res;
 }

@@ -2,7 +2,7 @@
 {{- end }}
 
 {{- define "irhead" }}
-{{ if .Verbose }}; OP {{ .Id }}: DUP{{ .Position }}{{- end }}
+{{ if .Verbose }}; OP {{ .Id }} (pc: {{ .Pc }}): DUP{{ .Position }}{{- end }}
 {{- end }} 
 
 {{- define "ircode" }}

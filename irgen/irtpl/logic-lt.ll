@@ -2,7 +2,7 @@
 {{- end }}
 
 {{- define "irhead" }}
-{{ if .Verbose }}; OP {{ .Id }}: LT{{- end }}
+{{ if .Verbose }}; OP {{ .Id }} (pc: {{ .Pc }}): LT{{- end }}
 {{- end }} 
 
 {{- define "ircode" }}

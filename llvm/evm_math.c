@@ -1,5 +1,6 @@
 #include "evm_math.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h> // For memcpy, memset
 #include <assert.h>
@@ -385,6 +386,65 @@ static inline bool s256_is_minus_one(const uint64_t words[4]) {
     return words[0] == UINT64_MAX && words[1] == UINT64_MAX && words[2] == UINT64_MAX && words[3] == UINT64_MAX;
 }
 
+// Helper function for 256x256 -> 256 bit multiplication (res = a * b)
+// Standard grade-school multiplication algorithm.
+static void u256_mul(uint64_t res[4], const uint64_t a[4], const uint64_t b[4]) {
+    uint64_t temp_res[8] = {0}; // Temporary 512-bit result
+
+    for (int i = 0; i < 4; ++i) {
+        uint64_t carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            uint64_t low_prod;
+            uint64_t high_prod = mul128(a[i], b[j], &low_prod);
+
+            // Add low_prod to temp_res[i+j] with carry
+            uint64_t carry1 = add_carry(temp_res[i+j], low_prod, 0, &temp_res[i+j]);
+            // Add high_prod to temp_res[i+j+1] with carry from previous addition and internal carry
+            uint64_t carry2 = add_carry(temp_res[i+j+1], high_prod, carry1, &temp_res[i+j+1]);
+            // Add the initial carry (from the column to the left)
+            uint64_t carry3 = add_carry(temp_res[i+j+1], carry, 0, &temp_res[i+j+1]);
+            carry = carry2 + carry3; // Propagate carry to the next higher word calculation
+
+            // Need to handle carry propagation beyond i+j+1
+            int k = i + j + 2;
+            while (carry > 0 && k < 8) {
+                 uint64_t carry_out = add_carry(temp_res[k], 0, carry, &temp_res[k]);
+                 carry = carry_out;
+                 k++;
+            }
+        }
+    }
+    // Copy the lower 256 bits (4 words) of the result
+    memcpy(res, temp_res, 4 * sizeof(uint64_t));
+}
+
+// Check if a 256-bit number is odd
+static inline bool u256_is_odd(const uint64_t words[4]) {
+    return (words[0] & 1) != 0;
+}
+
+// Right shift a 256-bit number by 1 bit, in place
+static void u256_shr1_inplace(uint64_t words[4]) {
+    words[0] = (words[0] >> 1) | (words[1] << 63);
+    words[1] = (words[1] >> 1) | (words[2] << 63);
+    words[2] = (words[2] >> 1) | (words[3] << 63);
+    words[3] = words[3] >> 1;
+}
+
+// Calculate the number of bytes required for the exponent (most significant byte)
+static int u256_exponent_bytes(const uint64_t words[4]) {
+    if (words[3] != 0) {
+        return 32 - (count_leading_zeros(words[3]) / 8);
+    } else if (words[2] != 0) {
+        return 24 - (count_leading_zeros(words[2]) / 8);
+    } else if (words[1] != 0) {
+        return 16 - (count_leading_zeros(words[1]) / 8);
+    } else if (words[0] != 0) {
+        return 8 - (count_leading_zeros(words[0]) / 8);
+    } else {
+        return 0; // Exponent is zero
+    }
+}
 
 // Negate a 256-bit number (two's complement) in place: words = ~words + 1
 static void s256_negate_inplace(uint64_t words[4]) {
@@ -547,4 +607,71 @@ int evm_math_smod(const unsigned char *a_bytes, const unsigned char *b_bytes, un
 
     words_le_to_bytes_be(rem_words, result_bytes);
     return 0;
+}
+
+// Gas costs (adjust if needed based on specific EVM fork)
+#define EXP_GAS 10
+#define EXP_BYTE_GAS 50
+
+int evm_math_exp(const unsigned char *base_bytes, const unsigned char *exponent_bytes, unsigned char *result_bytes, uint64_t *gasleft) {
+    uint64_t base_words[4], exp_words[4];
+    uint64_t result_words[4];
+    uint64_t current_base[4];
+
+    // Convert inputs
+    bytes_be_to_words_le(base_bytes, base_words);
+    bytes_be_to_words_le(exponent_bytes, exp_words);
+
+    // Calculate dynamic gas cost
+    int exp_bytes_count = u256_exponent_bytes(exp_words);
+    int64_t dynamic_gas = (int64_t)EXP_BYTE_GAS * exp_bytes_count;
+    int64_t total_gas = EXP_GAS + dynamic_gas;
+
+    printf("total_gas: %lld\n", total_gas);
+
+    // Check and deduct gas
+    if (*gasleft < total_gas) {
+        return -13;
+    }
+    *gasleft -= total_gas;
+
+    // Initialize result = 1
+    memset(result_words, 0, sizeof(result_words));
+    result_words[0] = 1;
+
+    // Handle base cases for exponent
+    if (u256_is_zero(exp_words)) {
+        // Exponent is 0, result is 1 (already set)
+        words_le_to_bytes_be(result_words, result_bytes);
+        return 0;
+    }
+    if (u256_is_zero(base_words)) {
+        // Base is 0, result is 0 (unless exp is 0, handled above)
+        memset(result_bytes, 0, 32);
+        return 0;
+    }
+
+    // Exponentiation by squaring
+    memcpy(current_base, base_words, sizeof(base_words)); // current_base = base
+    
+    while (!u256_is_zero(exp_words)) {
+        if (u256_is_odd(exp_words)) {
+            // result = result * current_base
+            uint64_t temp_result[4];
+            u256_mul(temp_result, result_words, current_base);
+            memcpy(result_words, temp_result, sizeof(result_words));
+        }
+        // current_base = current_base * current_base
+        uint64_t temp_base[4];
+        u256_mul(temp_base, current_base, current_base);
+        memcpy(current_base, temp_base, sizeof(current_base));
+
+        // exp = exp >> 1
+        u256_shr1_inplace(exp_words);
+    }
+
+    // Convert result back to bytes
+    words_le_to_bytes_be(result_words, result_bytes);
+
+    return 0; // Success
 }

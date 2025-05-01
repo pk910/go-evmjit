@@ -2,7 +2,7 @@
 {{- end }}
 
 {{- define "irhead" }}
-{{ if .Verbose }}; OP {{ .Id }}: SWAP{{ .Position }}{{- end }}
+{{ if .Verbose }}; OP {{ .Id }} (pc: {{ .Pc }}): SWAP{{ .Position }}{{- end }}
 {{- end }} 
 
 {{- define "ircode" }}

@@ -22,23 +22,25 @@ func main() {
 	//irf.AppendMul()
 	irf.AppendShl()
 	irf.AppendJumpDest()
-	//irf.AppendHighOpcode(0x05, 2, 1)
 	//irf.AppendDiv()
 	//irf.AppendDupN(2)
 	//irf.AppendPop()
 
-	irf.AppendGas()
-	irf.AppendPushN(1, []uint8{50})
+	//irf.AppendGas()
+	irf.AppendPushN(2, []uint8{10, 0x00})
 	irf.AppendGas()
 	irf.AppendGt()
 	irf.AppendPushN(1, []uint8{50})
 	irf.AppendJumpI()
 
 	irf.AppendPushN(1, []uint8{0x02})
-	//irf.AppendMul()
-	//irf.AppendSwapN(1)
+	irf.AppendSwapN(1)
+	irf.AppendHighOpcode(0x0A, 2, 1)
+	irf.AppendHighOpcode(0x0A, 2, 1)
+	//irf.AppendDiv()
+
 	irf.AppendStop()
-	irf.SetInputOutputs(0, 4)
+	irf.SetInputOutputs(0, 2)
 
 	irb := irgen.NewIRBuilder()
 	irb.AddFunction(irf)
@@ -49,7 +51,7 @@ func main() {
 
 	mod := llvm.NewModule()
 	mod.LoadIR(llvmIR)
-	mod.Call("test", 1000)
+	mod.Call("test", 10000)
 
 	fmt.Printf("Stack size: %d\n", mod.GetStackSize())
 	for i := 1; i <= mod.GetStackSize(); i++ {

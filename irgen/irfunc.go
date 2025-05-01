@@ -263,6 +263,10 @@ func (irf *IRFunction) AppendMulmod() error {
 	return irf.appendOpcode("math-mulmod.ll", 1, 8, nil)
 }
 
+func (irf *IRFunction) AppendSignextend() error {
+	return irf.appendOpcode("math-signextend.ll", 1, 5, nil)
+}
+
 func (irf *IRFunction) AppendLt() error {
 	return irf.appendOpcode("logic-lt.ll", 1, 3, nil)
 }

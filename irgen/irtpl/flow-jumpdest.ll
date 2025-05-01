@@ -2,7 +2,7 @@
 {{- end }}
 
 {{- define "irhead" }}
-{{- if .Verbose }}; OP {{ .Id }}: JUMPDEST{{- end }}
+{{- if .Verbose }}; OP {{ .Id }} (pc: {{ .Pc }}): JUMPDEST{{- end }}
 {{- end }} 
 
 {{- define "ircode" }}

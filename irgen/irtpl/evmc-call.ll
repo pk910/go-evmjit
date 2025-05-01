@@ -1,8 +1,11 @@
 {{- define "defcode" }}
 {{- end }}
 
+{{- define "irhead" }}
+{{ if .Verbose }}; OP {{ .Id }} (pc: {{ .Pc }}): {{ .Name }} (Generic Callback){{- end }}
+{{- end }} 
+
 {{- define "ircode" }}
-{{ if .Verbose }}; OP {{ .Id }}: {{ .Name }} (Generic Callback){{- end }}
 {{- $id := .Id }}
 {{- if gt .Inputs 0 }}
 %l{{ $id }}_in_buffer_alloca = alloca i8, i64 {{ mul .Inputs 32 }}, align 32
@@ -11,7 +14,9 @@
 %l{{ $id }}_in_stack_check1 = icmp ult i64 %l{{ $id }}_in_stack_pos, {{ mul .Inputs 32 }}
 br i1 %l{{ $id }}_in_stack_check1, label %l{{ $id }}_err_underflow, label %l{{ $id }}_in_ok1
 l{{ $id }}_err_underflow:
-  ret i32 -10
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
 l{{ $id }}_in_ok1:
 {{- end }}
 %l{{ $id }}_in_stack_read_pos = sub i64 %l{{ $id }}_in_stack_pos, {{ mul .Inputs 32 }}
@@ -40,14 +45,16 @@ store i64 %l{{ $id }}_new_evm_stack_pos_after_in, i64* %stack_position_ptr, alig
 %l{{ $id }}_overflow_check = icmp ugt i64 %l{{ $id }}_out_stack_pos, {{ sub (mul .MaxStack 32) (mul .Outputs 32) }}
 br i1 %l{{ $id }}_overflow_check, label %l{{ $id }}_err_overflow, label %l{{ $id }}_out_ok1
 l{{ $id }}_err_overflow:
-  ret i32 -11
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 -11, i32* %exitcode_ptr
+  br label %error_return
 l{{ $id }}_out_ok1:
 {{- end }}
 {{- end }}
 store i64 {{ .Pc }}, i64* %pc_ptr
 %l{{ $id }}_opcode_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
-%l{{ $id }}_opcode_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i16*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i16*)** %l{{ $id }}_opcode_fn_ptr_addr, align 8
-%l{{ $id }}_callctx_ptr_arg = bitcast %struct.evm_callctx* %callctx to i8* ; Cast callctx to i8* for the function signature
+%l{{ $id }}_opcode_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)** %l{{ $id }}_opcode_fn_ptr_addr, align 8
+%l{{ $id }}_callctx_ptr_arg = bitcast %struct.evm_callctx* %callctx to i8*
 %l{{ $id }}_call_ret = call i32 %l{{ $id }}_opcode_fn_ptr(
     i8* %l{{ $id }}_callctx_ptr_arg,
     i8 {{ .Opcode }},
@@ -55,7 +62,7 @@ store i64 {{ .Pc }}, i64* %pc_ptr
     i16 {{ mul .Inputs 32 }},
     i8* {{ if gt .Outputs 0 }}%l{{ $id }}_out_buffer_alloca{{ else }}null{{ end }},
     i16 {{ mul .Outputs 32 }},
-    i16* %stack_gasleft_ptr
+    i64* %stack_gasleft_ptr
 )
 %l{{ $id }}_call_ret_check = icmp ne i32 %l{{ $id }}_call_ret, 0
 br i1 %l{{ $id }}_call_ret_check, label %l{{ $id }}_err_callback, label %l{{ $id }}_callback_ok
