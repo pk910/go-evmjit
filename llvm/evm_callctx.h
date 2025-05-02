@@ -13,10 +13,10 @@ struct evm_callctx {
     uint64_t pc;
     uint64_t gas;
     opcode_func_ptr opcode_fn;
-    void *custom_data;
+    void *goptr;
 };
 
-evm_callctx *callctx_init(evm_stack *stack, int gaslimit);
+evm_callctx *callctx_init(void *goptr, evm_stack *stack, int gaslimit);
 void callctx_free(evm_callctx *callctx);
 uint64_t callctx_get_pc(evm_callctx *callctx);
 uint64_t callctx_get_gas(evm_callctx *callctx);

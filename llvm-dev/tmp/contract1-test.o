@@ -1,0 +1,50 @@
+; ModuleID = 'contract1-test.ll'
+source_filename = "buffer"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-linux-gnu"
+
+%struct.evm_callctx = type { %struct.evm_stack*, i64, i64, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i8* }
+%struct.evm_stack = type { i8*, i64 }
+
+@const_zero32 = local_unnamed_addr constant [32 x i8] zeroinitializer
+@const_data0 = local_unnamed_addr constant [1 x i8] c"B"
+@const_data1 = local_unnamed_addr constant [1 x i8] c"\01"
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn
+define i32 @main(%struct.evm_callctx* nocapture noundef %callctx) local_unnamed_addr #0 {
+entry:
+  %gasleft_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 2
+  %gasleft_val = load i64, i64* %gasleft_ptr, align 4
+  %l0_gas2 = icmp ult i64 %gasleft_val, 3
+  br i1 %l0_gas2, label %common.ret, label %l0_gasok
+
+l0_gasok:                                         ; preds = %entry
+  %l0_gas4 = add i64 %gasleft_val, -3
+  %l1_gas2 = icmp ult i64 %l0_gas4, 3
+  br i1 %l1_gas2, label %common.ret, label %l1_gasok
+
+l1_gasok:                                         ; preds = %l0_gasok
+  %l1_gas4 = add i64 %gasleft_val, -6
+  %l2_gas2 = icmp ult i64 %l1_gas4, 3
+  br i1 %l2_gas2, label %common.ret, label %l2_gasok
+
+l2_gasok:                                         ; preds = %l1_gasok
+  %l2_gas4 = add i64 %gasleft_val, -9
+  %l3_gas2 = icmp ult i64 %l2_gas4, 2
+  br i1 %l3_gas2, label %common.ret, label %l3_gasok
+
+l3_gasok:                                         ; preds = %l2_gasok
+  %l3_gas4 = add i64 %gasleft_val, -11
+  br label %common.ret
+
+common.ret:                                       ; preds = %l2_gasok, %l1_gasok, %l0_gasok, %entry, %l3_gasok
+  %.sink = phi i64 [ 6, %l3_gasok ], [ 0, %entry ], [ 2, %l0_gasok ], [ 4, %l1_gasok ], [ 5, %l2_gasok ]
+  %storemerge = phi i64 [ %l3_gas4, %l3_gasok ], [ %gasleft_val, %entry ], [ %l0_gas4, %l0_gasok ], [ %l1_gas4, %l1_gasok ], [ %l2_gas4, %l2_gasok ]
+  %common.ret.op = phi i32 [ 0, %l3_gasok ], [ -13, %entry ], [ -13, %l0_gasok ], [ -13, %l1_gasok ], [ -13, %l2_gasok ]
+  %pc_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 1
+  store i64 %.sink, i64* %pc_ptr, align 4
+  store i64 %storemerge, i64* %gasleft_ptr, align 4
+  ret i32 %common.ret.op
+}
+
+attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn }

@@ -67,7 +67,9 @@ store i64 {{ .Pc }}, i64* %pc_ptr
 %l{{ $id }}_call_ret_check = icmp ne i32 %l{{ $id }}_call_ret, 0
 br i1 %l{{ $id }}_call_ret_check, label %l{{ $id }}_err_callback, label %l{{ $id }}_callback_ok
 l{{ $id }}_err_callback:
-  ret i32 %l{{ $id }}_call_ret
+  store i64 {{ .Pc }}, i64* %pc_ptr
+  store i32 %l{{ $id }}_call_ret, i32* %exitcode_ptr
+  br label %error_return
 l{{ $id }}_callback_ok:
 {{- if gt .Outputs 0 }}
 %l{{ $id }}_evm_stack_write_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ $id }}_out_stack_pos

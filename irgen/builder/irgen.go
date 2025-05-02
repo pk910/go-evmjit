@@ -1,4 +1,4 @@
-package irgen
+package builder
 
 import (
 	"bytes"

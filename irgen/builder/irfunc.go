@@ -1,4 +1,4 @@
-package irgen
+package builder
 
 import (
 	"bytes"
@@ -39,14 +39,14 @@ type IROpcode struct {
 }
 
 // NewIRFunction creates a new IRFunction.
-func NewIRFunction(name string, verbose bool) *IRFunction {
+func NewIRFunction(name string, stacksize uint16, verbose bool) *IRFunction {
 	return &IRFunction{
 		name:        name,
 		branches:    []*IRBranch{},
 		branchCount: 0,
 		pccount:     0,
-		maxstack:    1024,
-		heapstack:   256,
+		maxstack:    stacksize,
+		heapstack:   0,
 		inputs:      0,
 		outputs:     0,
 		verbose:     verbose,
@@ -54,9 +54,10 @@ func NewIRFunction(name string, verbose bool) *IRFunction {
 	}
 }
 
-func (irf *IRFunction) SetInputOutputs(inputs, outputs uint8) {
+func (irf *IRFunction) SetStackInputOutputs(inputs, outputs uint8, stacksize uint16) {
 	irf.inputs = inputs
 	irf.outputs = outputs
+	irf.heapstack = stacksize
 }
 
 func (irf *IRFunction) String() string {
@@ -118,7 +119,7 @@ store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 
 `, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
 
-	if irf.outputs > 0 || irf.inputs > 0 {
+	if irf.heapstack > 0 {
 		fncode.WriteString(fmt.Sprintf(`
 %%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
 %%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 0
@@ -128,7 +129,7 @@ store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 	}
 
 	// load inputs from heap stack to local stack
-	if irf.inputs > 0 {
+	if irf.heapstack > 0 && irf.inputs > 0 {
 		tpl := irtpl.GetTemplate("stack-input.ll")
 		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
 			"Inputs":     uint64(irf.inputs),
@@ -162,7 +163,7 @@ graceful_return:
 `)
 
 	// load outputs from local stack to heap stack
-	if irf.outputs > 0 {
+	if irf.heapstack > 0 && irf.outputs > 0 {
 		tpl := irtpl.GetTemplate("stack-output.ll")
 		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
 			"Outputs":    uint64(irf.outputs),
@@ -323,8 +324,8 @@ func (irf *IRFunction) AppendSar() error {
 	return irf.appendOpcode("logic-sar.ll", 1, 3, nil)
 }
 
-func (irf *IRFunction) AppendHighOpcode(opcode, inputs, outputs uint8) error {
-	return irf.appendOpcode("evmc-call.ll", 1, 0, map[string]interface{}{
+func (irf *IRFunction) AppendHighOpcode(opcode, inputs, outputs uint8, gascost int32) error {
+	return irf.appendOpcode("evmc-call.ll", 1, gascost, map[string]interface{}{
 		"Name":    fmt.Sprintf("c%d", opcode),
 		"Opcode":  uint64(opcode),
 		"Inputs":  uint64(inputs),

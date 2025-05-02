@@ -622,18 +622,18 @@ int evm_math_exp(const unsigned char *base_bytes, const unsigned char *exponent_
     bytes_be_to_words_le(base_bytes, base_words);
     bytes_be_to_words_le(exponent_bytes, exp_words);
 
-    // Calculate dynamic gas cost
-    int exp_bytes_count = u256_exponent_bytes(exp_words);
-    int64_t dynamic_gas = (int64_t)EXP_BYTE_GAS * exp_bytes_count;
-    int64_t total_gas = EXP_GAS + dynamic_gas;
+    if (gasleft != NULL) {
+        // Calculate dynamic gas cost
+        int exp_bytes_count = u256_exponent_bytes(exp_words);
+        int64_t dynamic_gas = (int64_t)EXP_BYTE_GAS * exp_bytes_count;
+        int64_t total_gas = EXP_GAS + dynamic_gas;
 
-    printf("total_gas: %lld\n", total_gas);
-
-    // Check and deduct gas
-    if (*gasleft < total_gas) {
-        return -13;
+        // Check and deduct gas
+        if (*gasleft < total_gas) {
+            return -13;
+        }
+        *gasleft -= total_gas;
     }
-    *gasleft -= total_gas;
 
     // Initialize result = 1
     memset(result_words, 0, sizeof(result_words));
@@ -653,7 +653,7 @@ int evm_math_exp(const unsigned char *base_bytes, const unsigned char *exponent_
 
     // Exponentiation by squaring
     memcpy(current_base, base_words, sizeof(base_words)); // current_base = base
-    
+
     while (!u256_is_zero(exp_words)) {
         if (u256_is_odd(exp_words)) {
             // result = result * current_base
