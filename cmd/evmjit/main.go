@@ -7,15 +7,15 @@ import (
 	"log"
 	"os"
 
-	"github.com/pk910/go-eofjit/irgen"
-	"github.com/pk910/go-eofjit/llvm"
+	"github.com/pk910/go-evmjit/irgen"
+	"github.com/pk910/go-evmjit/llvm"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "eofjit",
-	Short: "EOFJIT development tool",
-	Long:  `A CLI tool for interacting with the EOFJIT library components during development.`,
+	Use:   "evmjit",
+	Short: "evmjit development tool",
+	Long:  `A CLI tool for interacting with the evmjit library components during development.`,
 }
 
 var buildCmd = &cobra.Command{

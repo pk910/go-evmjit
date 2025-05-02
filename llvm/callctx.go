@@ -21,6 +21,7 @@ type CallCtx struct {
 	disposeStack bool
 	gaslimit     uint64
 	opbindings   *OpBindings
+	UserValue    interface{}
 }
 
 func NewCallCtx(stack *C.evm_stack, gaslimit uint64) (*CallCtx, error) {

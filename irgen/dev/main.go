@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pk910/go-eofjit/irgen/builder"
-	"github.com/pk910/go-eofjit/llvm"
+	"github.com/pk910/go-evmjit/irgen/builder"
+	"github.com/pk910/go-evmjit/llvm"
 )
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 	llvmIR := irb.String()
 
 	os.WriteFile("./contract1-test.ll", []byte(llvmIR), 0644)
-	fmt.Println(llvmIR)
+	//fmt.Println(llvmIR)
 
 	callctx, err := llvm.NewCallCtx(nil, 10000)
 	if err != nil {

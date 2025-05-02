@@ -3,7 +3,7 @@ package irgen
 import (
 	"fmt"
 
-	"github.com/pk910/go-eofjit/irgen/builder"
+	"github.com/pk910/go-evmjit/irgen/builder"
 )
 
 type EVM0Parser struct {

@@ -1,4 +1,4 @@
-module github.com/pk910/go-eofjit
+module github.com/pk910/go-evmjit
 
 go 1.22.4
 

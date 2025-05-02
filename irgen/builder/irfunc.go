@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"html/template"
 
-	"github.com/pk910/go-eofjit/irgen/irtpl"
+	"github.com/pk910/go-evmjit/irgen/irtpl"
 )
 
 // IRFunction represents a function in the LLVM IR code which contains a EOF code section.
