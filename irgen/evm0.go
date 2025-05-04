@@ -39,6 +39,15 @@ func (p *EVM0Parser) GenerateIR() string {
 
 func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []uint8) (used uint32, err error) {
 	used = 1
+	appendPushN := func(n uint8) {
+		if len(data) < int(n) {
+			used += uint32(len(data))
+		} else {
+			used += uint32(n)
+			err = irf.AppendPushN(n, data[:n])
+		}
+	}
+
 	switch opcode {
 	case 0x00: // STOP
 		err = irf.AppendStop()
@@ -181,101 +190,69 @@ func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []u
 	case 0x5F: // PUSH0
 		err = irf.AppendPushN(0, []uint8{})
 	case 0x60: // PUSH1
-		used += 1
-		err = irf.AppendPushN(1, data[:1])
+		appendPushN(1)
 	case 0x61: // PUSH2
-		used += 2
-		err = irf.AppendPushN(2, data[:2])
+		appendPushN(2)
 	case 0x62: // PUSH3
-		used += 3
-		err = irf.AppendPushN(3, data[:3])
+		appendPushN(3)
 	case 0x63: // PUSH4
-		used += 4
-		err = irf.AppendPushN(4, data[:4])
+		appendPushN(4)
 	case 0x64: // PUSH5
-		used += 5
-		err = irf.AppendPushN(5, data[:5])
+		appendPushN(5)
 	case 0x65: // PUSH6
-		used += 6
-		err = irf.AppendPushN(6, data[:6])
+		appendPushN(6)
 	case 0x66: // PUSH7
-		used += 7
-		err = irf.AppendPushN(7, data[:7])
+		appendPushN(7)
 	case 0x67: // PUSH8
-		used += 8
-		err = irf.AppendPushN(8, data[:8])
+		appendPushN(8)
 	case 0x68: // PUSH9
-		used += 9
-		err = irf.AppendPushN(9, data[:9])
+		appendPushN(9)
 	case 0x69: // PUSH10
-		used += 10
-		err = irf.AppendPushN(10, data[:10])
+		appendPushN(10)
 	case 0x6A: // PUSH11
-		used += 11
-		err = irf.AppendPushN(11, data[:11])
+		appendPushN(11)
 	case 0x6B: // PUSH12
-		used += 12
-		err = irf.AppendPushN(12, data[:12])
+		appendPushN(12)
 	case 0x6C: // PUSH13
-		used += 13
-		err = irf.AppendPushN(13, data[:13])
+		appendPushN(13)
 	case 0x6D: // PUSH14
-		used += 14
-		err = irf.AppendPushN(14, data[:14])
+		appendPushN(14)
 	case 0x6E: // PUSH15
-		used += 15
-		err = irf.AppendPushN(15, data[:15])
+		appendPushN(15)
 	case 0x6F: // PUSH16
-		used += 16
-		err = irf.AppendPushN(16, data[:16])
+		appendPushN(16)
 	case 0x70: // PUSH17
-		used += 17
-		err = irf.AppendPushN(17, data[:17])
+		appendPushN(17)
 	case 0x71: // PUSH18
-		used += 18
-		err = irf.AppendPushN(18, data[:18])
+		appendPushN(18)
 	case 0x72: // PUSH19
-		used += 19
-		err = irf.AppendPushN(19, data[:19])
+		appendPushN(19)
 	case 0x73: // PUSH20
-		used += 20
-		err = irf.AppendPushN(20, data[:20])
+		appendPushN(20)
 	case 0x74: // PUSH21
-		used += 21
-		err = irf.AppendPushN(21, data[:21])
+		appendPushN(21)
 	case 0x75: // PUSH22
-		used += 22
-		err = irf.AppendPushN(22, data[:22])
+		appendPushN(22)
 	case 0x76: // PUSH23
-		used += 23
-		err = irf.AppendPushN(23, data[:23])
+		appendPushN(23)
 	case 0x77: // PUSH24
-		used += 24
-		err = irf.AppendPushN(24, data[:24])
+		appendPushN(24)
 	case 0x78: // PUSH25
-		used += 25
-		err = irf.AppendPushN(25, data[:25])
+		appendPushN(25)
 	case 0x79: // PUSH26
-		used += 26
-		err = irf.AppendPushN(26, data[:26])
+		appendPushN(26)
 	case 0x7A: // PUSH27
-		used += 27
-		err = irf.AppendPushN(27, data[:27])
+		appendPushN(27)
 	case 0x7B: // PUSH28
-		used += 28
-		err = irf.AppendPushN(28, data[:28])
+		appendPushN(28)
 	case 0x7C: // PUSH29
-		used += 29
-		err = irf.AppendPushN(29, data[:29])
+		appendPushN(29)
 	case 0x7D: // PUSH30
-		used += 30
-		err = irf.AppendPushN(30, data[:30])
+		appendPushN(30)
 	case 0x7E: // PUSH31
-		used += 31
-		err = irf.AppendPushN(31, data[:31])
+		appendPushN(31)
 	case 0x7F: // PUSH32
-		used += 32
-		err = irf.AppendPushN(32, data[:32])
+		appendPushN(32)
 	case 0x80: // DUP1
 		err = irf.AppendDupN(1)
 	case 0x81: // DUP2
