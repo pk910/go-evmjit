@@ -8,6 +8,8 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/holiman/uint256"
 )
 
 //go:embed *.ll
@@ -21,6 +23,10 @@ var templateFuncs = template.FuncMap{
 			b.WriteString("\\" + hex.EncodeToString([]byte{data[i]}))
 		}
 		return b.String()
+	},
+	"u256": func(data []byte) string {
+		val := uint256.NewInt(0).SetBytes(data)
+		return val.String()
 	},
 	"hex": func(data []byte) string {
 		return hex.EncodeToString(data)
