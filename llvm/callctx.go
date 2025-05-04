@@ -13,6 +13,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"runtime/cgo"
 	"unsafe"
 
 	"github.com/holiman/uint256"
@@ -22,6 +23,7 @@ import (
 type CallCtx struct {
 	callctx      *C.evm_callctx
 	stack        *C.evm_stack
+	handle       cgo.Handle
 	disposeStack bool
 	gaslimit     uint64
 	opbindings   types.OpBindings
@@ -46,7 +48,9 @@ func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (typ
 		userValue:    userValue,
 	}
 
-	callctx.callctx = C.callctx_init(unsafe.Pointer(callctx), stack, C.int(gaslimit))
+	callctx.handle = cgo.NewHandle(callctx)
+
+	callctx.callctx = C.callctx_init(C.uintptr_t(callctx.handle), stack, C.int(gaslimit))
 	if callctx.callctx == nil {
 		return nil, errors.New("failed to initialize callctx")
 	}
@@ -58,6 +62,7 @@ func (c *CallCtx) Dispose() {
 	if c.disposeStack {
 		C.stack_free(c.stack)
 	}
+	cgo.Handle(c.handle).Delete()
 	C.callctx_free(c.callctx)
 }
 
@@ -87,7 +92,8 @@ func (c *CallCtx) GetUserValue() interface{} {
 
 //export RunBinding
 func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_len C.uint16_t, output_ptr *C.uint8_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
-	callctx := (*CallCtx)(c.goptr)
+	callctx := cgo.Handle(c.goptr).Value().(*CallCtx)
+
 	opbindings := callctx.opbindings
 	if opbindings == nil {
 		fmt.Println("No opbindings found")
