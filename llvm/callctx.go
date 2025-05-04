@@ -28,7 +28,7 @@ type CallCtx struct {
 	userValue    interface{}
 }
 
-func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (*CallCtx, error) {
+func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (types.CallCtx, error) {
 	disposeStack := false
 	if stack == nil {
 		stack = C.stack_init(C.uint16_t(512))

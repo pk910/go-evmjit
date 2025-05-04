@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"log"
 	"unsafe"
+
+	"github.com/pk910/go-evmjit/llvm/types"
 )
 
 type Module struct {
@@ -41,7 +43,7 @@ func GetNativeTarget() (C.LLVMTargetMachineRef, *C.char) {
 	return nativeTarget, nativeTriple
 }
 
-func NewModule() *Module {
+func NewModule() types.Module {
 	return &Module{
 		fnaddr: make(map[string]C.jit_func_ptr),
 	}
@@ -102,7 +104,7 @@ func (m *Module) getFnAddr(name string) (C.jit_func_ptr, error) {
 	return fnaddr, nil
 }
 
-func (m *Module) Call(callctx *CallCtx, name string) (int, error) {
+func (m *Module) Call(callctx types.CallCtx, name string) (int, error) {
 	if m.engine == nil {
 		err := m.InitEngine()
 		if err != nil {
@@ -121,7 +123,7 @@ func (m *Module) Call(callctx *CallCtx, name string) (int, error) {
 		fnaddr = fnaddr2
 	}
 
-	retVal := C.call_jit_func(fnaddr, callctx.callctx)
+	retVal := C.call_jit_func(fnaddr, callctx.(*CallCtx).callctx)
 
 	return int(retVal), nil
 }

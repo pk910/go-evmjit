@@ -12,6 +12,15 @@ var (
 	ErrOutOfGas       = errors.New("out of gas")
 )
 
+type Module interface {
+	LoadIR(ir string) error
+	Dispose()
+	InitEngine() error
+	Call(callctx CallCtx, name string) (int, error)
+	Marshal() ([]byte, error)
+	Unmarshal(data []byte) error
+}
+
 type CallCtx interface {
 	Dispose()
 	SetOpBindings(opbindings OpBindings)
@@ -19,6 +28,7 @@ type CallCtx interface {
 	GetGas() uint64
 	PrintStack(n int)
 	GetStackSize() int
+	GetUserValue() interface{}
 }
 
 type OpBindingFn func(c CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error
