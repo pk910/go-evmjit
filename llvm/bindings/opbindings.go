@@ -5,13 +5,11 @@ import (
 )
 
 type OpBindings struct {
-	bindings map[uint8]types.OpBindingFn
+	bindings [256]types.OpBindingFn
 }
 
 func NewOpBindings() types.OpBindings {
-	return &OpBindings{
-		bindings: make(map[uint8]types.OpBindingFn),
-	}
+	return &OpBindings{}
 }
 
 func (b *OpBindings) Dispose() {

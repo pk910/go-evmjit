@@ -5,27 +5,27 @@ import (
 	"github.com/pk910/go-evmjit/llvm/types"
 )
 
-func MathDiv(c types.CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+func MathDiv(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
 	inputs[0].Div(&inputs[1], &inputs[0])
 	return nil
 }
 
-func MathMod(c types.CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+func MathMod(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
 	inputs[0].Mod(&inputs[1], &inputs[0])
 	return nil
 }
 
-func MathSDiv(c types.CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+func MathSDiv(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
 	inputs[0].SDiv(&inputs[1], &inputs[0])
 	return nil
 }
 
-func MathSMod(c types.CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+func MathSMod(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
 	inputs[0].SMod(&inputs[1], &inputs[0])
 	return nil
 }
 
-func MathExp(c types.CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+func MathExp(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
 	// dynamic gas cost
 	expBytes := inputs[0].ByteLen()
 	dynamicGas := uint64(50) * uint64(expBytes)

@@ -24,6 +24,7 @@ type Module interface {
 type CallCtx interface {
 	Dispose()
 	SetOpBindings(opbindings OpBindings)
+	SetOpCallback(opcallback OpBindingFn)
 	GetPC() uint64
 	GetGas() uint64
 	PrintStack(n int)
@@ -31,7 +32,7 @@ type CallCtx interface {
 	GetUserValue() interface{}
 }
 
-type OpBindingFn func(c CallCtx, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error
+type OpBindingFn func(c CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error
 
 type OpBindings interface {
 	Dispose()

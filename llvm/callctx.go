@@ -27,6 +27,7 @@ type CallCtx struct {
 	disposeStack bool
 	gaslimit     uint64
 	opbindings   types.OpBindings
+	opcallback   types.OpBindingFn
 	userValue    interface{}
 }
 
@@ -70,6 +71,10 @@ func (c *CallCtx) SetOpBindings(opbindings types.OpBindings) {
 	c.opbindings = opbindings
 }
 
+func (c *CallCtx) SetOpCallback(opcallback types.OpBindingFn) {
+	c.opcallback = opcallback
+}
+
 func (c *CallCtx) GetPC() uint64 {
 	return uint64(C.callctx_get_pc(c.callctx))
 }
@@ -94,15 +99,21 @@ func (c *CallCtx) GetUserValue() interface{} {
 func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_len C.uint16_t, output_ptr *C.uint8_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
 	callctx := cgo.Handle(c.goptr).Value().(*CallCtx)
 
-	opbindings := callctx.opbindings
-	if opbindings == nil {
-		fmt.Println("No opbindings found")
-		return C.int32_t(-1)
-	}
+	var binding types.OpBindingFn
 
-	binding := opbindings.GetBinding(opcode)
-	if binding == nil {
-		return C.int32_t(-1)
+	if callctx.opcallback != nil {
+		binding = callctx.opcallback
+	} else {
+		opbindings := callctx.opbindings
+		if opbindings == nil {
+			fmt.Println("No opbindings found")
+			return C.int32_t(-1)
+		}
+
+		binding = opbindings.GetBinding(opcode)
+		if binding == nil {
+			return C.int32_t(-1)
+		}
 	}
 
 	// Interpret the raw byte-input as a slice of `uint256.Int` without copying
@@ -124,7 +135,7 @@ func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_le
 		output = (*[1 << 27]uint256.Int)(unsafe.Pointer(output_ptr))[:words:words]
 	}
 
-	err := binding(callctx, inputs, output, (*uint64)(unsafe.Pointer(gasleft)))
+	err := binding(callctx, opcode, inputs, output, (*uint64)(unsafe.Pointer(gasleft)))
 	if err != nil {
 		switch err {
 		case types.ErrStackUnderflow:
