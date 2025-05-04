@@ -133,20 +133,5 @@ func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_le
 		output = (*[1 << 27]uint256.Int)(unsafe.Pointer(output_ptr))[:words:words]
 	}
 
-	err := binding(callctx, opcode, inputs, output, (*uint64)(unsafe.Pointer(gasleft)))
-	if err != nil {
-		switch err {
-		case types.ErrStackUnderflow:
-			return C.int32_t(-10)
-		case types.ErrStackOverflow:
-			return C.int32_t(-11)
-		case types.ErrOutOfGas:
-			return C.int32_t(-13)
-		case types.ErrStopToken:
-			return C.int32_t(-2)
-		default:
-			return C.int32_t(-1)
-		}
-	}
-	return C.int32_t(0)
+	return C.int32_t(binding(callctx, opcode, inputs, output, (*uint64)(unsafe.Pointer(gasleft))))
 }

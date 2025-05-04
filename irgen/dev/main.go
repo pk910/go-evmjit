@@ -66,9 +66,9 @@ func main() {
 	opbindings.AddBinding(0x06, bindings.MathSDiv)
 	opbindings.AddBinding(0x07, bindings.MathSMod)
 	opbindings.AddBinding(0x0A, bindings.MathExp)
-	opbindings.AddBinding(0x48, func(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error {
+	opbindings.AddBinding(0x48, func(c types.CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) int32 {
 		fmt.Println("debug", inputs)
-		return nil
+		return 0
 	})
 	callctx.SetOpBindings(opbindings)
 

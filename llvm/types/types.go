@@ -1,16 +1,7 @@
 package types
 
 import (
-	"errors"
-
 	"github.com/holiman/uint256"
-)
-
-var (
-	ErrStackUnderflow = errors.New("stack underflow")
-	ErrStackOverflow  = errors.New("stack overflow")
-	ErrOutOfGas       = errors.New("out of gas")
-	ErrStopToken      = errors.New("stop token")
 )
 
 type Module interface {
@@ -33,7 +24,7 @@ type CallCtx interface {
 	GetUserValue() interface{}
 }
 
-type OpBindingFn func(c CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) error
+type OpBindingFn func(c CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) int32
 
 type OpBindings interface {
 	Dispose()
