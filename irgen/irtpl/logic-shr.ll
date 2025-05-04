@@ -28,7 +28,7 @@ br i1 %l{{ .Id }}_shift_check, label %l{{ .Id }}_shift_large, label %l{{ .Id }}_
 l{{ .Id }}_shift_large:
   br label %l{{ .Id }}_store_res
 l{{ .Id }}_shift_ok:
-  %l{{ .Id }}_shifted_val = shr i256 %l{{ .Id }}_value, %l{{ .Id }}_shift
+  %l{{ .Id }}_shifted_val = lshr i256 %l{{ .Id }}_value, %l{{ .Id }}_shift
   br label %l{{ .Id }}_store_res
 l{{ .Id }}_store_res:
 %l{{ .Id }}_final_res = phi i256 [ 0, %l{{ .Id }}_shift_large ], [ %l{{ .Id }}_shifted_val, %l{{ .Id }}_shift_ok ]
