@@ -10,6 +10,7 @@ var (
 	ErrStackUnderflow = errors.New("stack underflow")
 	ErrStackOverflow  = errors.New("stack overflow")
 	ErrOutOfGas       = errors.New("out of gas")
+	ErrStopToken      = errors.New("stop token")
 )
 
 type Module interface {

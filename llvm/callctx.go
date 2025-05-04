@@ -144,6 +144,8 @@ func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_le
 			return C.int32_t(-11)
 		case types.ErrOutOfGas:
 			return C.int32_t(-13)
+		case types.ErrStopToken:
+			return C.int32_t(-2)
 		default:
 			return C.int32_t(-1)
 		}
