@@ -37,7 +37,7 @@ func (p *EVM0Parser) GenerateIR() string {
 	return p.irb.String()
 }
 
-func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []uint8) (used uint8, err error) {
+func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []uint8) (used uint32, err error) {
 	used = 1
 	switch opcode {
 	case 0x00: // STOP
@@ -364,8 +364,8 @@ func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []u
 		err = irf.AppendHighOpcode(opcode, 4, 1, 0)
 	case 0xFD: // REVERT
 		err = irf.AppendHighOpcode(opcode, 2, 0, 0)
-	case 0xFE: // INVALID
-		err = irf.AppendHighOpcode(opcode, 0, 0, 0)
+	case 0xFE: // INVALID - stop parsing here
+		used += uint32(len(data))
 	case 0xFF: // SELFDESTRUCT
 		err = irf.AppendHighOpcode(opcode, 1, 0, 0)
 	default: // ignore invalid opcodes

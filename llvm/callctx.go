@@ -12,7 +12,6 @@ package llvm
 import "C"
 import (
 	"errors"
-	"fmt"
 	"runtime/cgo"
 	"unsafe"
 
@@ -106,7 +105,6 @@ func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_le
 	} else {
 		opbindings := callctx.opbindings
 		if opbindings == nil {
-			fmt.Println("No opbindings found")
 			return C.int32_t(-1)
 		}
 
