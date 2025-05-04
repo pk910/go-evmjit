@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "module.h"
 
@@ -53,7 +52,5 @@ void disposeError(char** error) {
 
 typedef int32_t (*jit_func_ptr)(void *);
 int32_t call_jit_func(jit_func_ptr fn, struct evm_callctx *callctx) {
-	//printf("Calling JIT function\n StackPos: %d\n", callctx->stack->position);
-    printf("Calling JIT function\n");
     return fn(callctx);
 }

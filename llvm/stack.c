@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "evm_stack.h"
+#include "stack.h"
 
 evm_stack *stack_init(uint16_t size) {
     evm_stack *stack = malloc(sizeof(evm_stack));

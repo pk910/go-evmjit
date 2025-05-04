@@ -121,13 +121,7 @@ func (m *Module) Call(callctx *CallCtx, name string) (int, error) {
 		fnaddr = fnaddr2
 	}
 
-	fmt.Printf("jit function pointer: %x\n", fnaddr)
-
 	retVal := C.call_jit_func(fnaddr, callctx.callctx)
-
-	fmt.Printf("Result from @test: %d\n", retVal)
-	fmt.Printf("  Gas left: %d\n", callctx.GetGas())
-	fmt.Printf("  PC: %d\n", callctx.GetPC())
 
 	return int(retVal), nil
 }

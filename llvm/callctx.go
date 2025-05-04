@@ -5,14 +5,18 @@ package llvm
 #cgo LDFLAGS: -L/usr/lib/llvm-14/lib -lLLVM
 
 #include <stdlib.h>
-#include "evm_stack.h"
-#include "evm_callctx.h"
+#include "stack.h"
+#include "callctx.h"
 
 */
 import "C"
 import (
 	"errors"
+	"fmt"
 	"unsafe"
+
+	"github.com/holiman/uint256"
+	"github.com/pk910/go-evmjit/llvm/types"
 )
 
 type CallCtx struct {
@@ -20,11 +24,11 @@ type CallCtx struct {
 	stack        *C.evm_stack
 	disposeStack bool
 	gaslimit     uint64
-	opbindings   *OpBindings
-	UserValue    interface{}
+	opbindings   types.OpBindings
+	userValue    interface{}
 }
 
-func NewCallCtx(stack *C.evm_stack, gaslimit uint64) (*CallCtx, error) {
+func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (*CallCtx, error) {
 	disposeStack := false
 	if stack == nil {
 		stack = C.stack_init(C.uint16_t(512))
@@ -39,6 +43,7 @@ func NewCallCtx(stack *C.evm_stack, gaslimit uint64) (*CallCtx, error) {
 		stack:        stack,
 		disposeStack: disposeStack,
 		gaslimit:     gaslimit,
+		userValue:    userValue,
 	}
 
 	callctx.callctx = C.callctx_init(unsafe.Pointer(callctx), stack, C.int(gaslimit))
@@ -56,7 +61,7 @@ func (c *CallCtx) Dispose() {
 	C.callctx_free(c.callctx)
 }
 
-func (c *CallCtx) SetOpBindings(opbindings *OpBindings) {
+func (c *CallCtx) SetOpBindings(opbindings types.OpBindings) {
 	c.opbindings = opbindings
 }
 
@@ -74,4 +79,57 @@ func (c *CallCtx) PrintStack(n int) {
 
 func (c *CallCtx) GetStackSize() int {
 	return int(C.stack_get_size(c.stack))
+}
+
+func (c *CallCtx) GetUserValue() interface{} {
+	return c.userValue
+}
+
+//export RunBinding
+func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_len C.uint16_t, output_ptr *C.uint8_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
+	callctx := (*CallCtx)(c.goptr)
+	opbindings := callctx.opbindings
+	if opbindings == nil {
+		fmt.Println("No opbindings found")
+		return C.int32_t(-1)
+	}
+
+	binding := opbindings.GetBinding(opcode)
+	if binding == nil {
+		return C.int32_t(-1)
+	}
+
+	// Interpret the raw byte-input as a slice of `uint256.Int` without copying
+	// Each `uint256.Int` occupies exactly 32 bytes (4 * uint64). We can therefore
+	// compute how many 256-bit words we received and cast the underlying memory
+	// accordingly. The bytes are already in little-endian order, which matches
+	// the internal limb ordering of `uint256.Int` on little-endian machines, so
+	// no additional swapping is necessary.
+
+	var inputs []uint256.Int
+	if inputs_len > 0 {
+		words := int(inputs_len) / 32
+		inputs = (*[1 << 27]uint256.Int)(unsafe.Pointer(inputs_ptr))[:words:words]
+	}
+
+	var output []uint256.Int
+	if output_len > 0 {
+		words := int(output_len) / 32
+		output = (*[1 << 27]uint256.Int)(unsafe.Pointer(output_ptr))[:words:words]
+	}
+
+	err := binding(callctx, inputs, output, (*uint64)(unsafe.Pointer(gasleft)))
+	if err != nil {
+		switch err {
+		case types.ErrStackUnderflow:
+			return C.int32_t(-10)
+		case types.ErrStackOverflow:
+			return C.int32_t(-11)
+		case types.ErrOutOfGas:
+			return C.int32_t(-13)
+		default:
+			return C.int32_t(-1)
+		}
+	}
+	return C.int32_t(0)
 }

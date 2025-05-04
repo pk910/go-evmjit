@@ -146,17 +146,15 @@ l3_err_underflow:
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
 l3_ok:
-%l3_2 = alloca [32 x i8], align 16
-%l3_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l3_1
-%l3_4 = getelementptr inbounds i8, i8* %l3_3, i64 -32
-%l3_5 = shl nsw i32 2, 5
-%l3_6 = sext i32 %l3_5 to i64
-%l3_7 = sub nsw i64 0, %l3_6
-%l3_8 = getelementptr inbounds i8, i8* %l3_4, i64 %l3_7
-%l3_9 = getelementptr inbounds [32 x i8], [32 x i8]* %l3_2, i64 0, i64 0
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 16 dereferenceable(32) %l3_9, i8* noundef nonnull align 1 dereferenceable(32) %l3_4, i64 32, i1 false)
-tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l3_4, i8* noundef nonnull align 1 dereferenceable(32) %l3_8, i64 32, i1 false)
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l3_8, i8* noundef nonnull align 16 dereferenceable(32) %l3_9, i64 32, i1 false)
+%l3_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l3_1
+%l3_3 = getelementptr inbounds i8, i8* %l3_2, i64 -32
+%l3_7 = getelementptr inbounds i8, i8* %l3_3, i64 -64
+%l3_8 = bitcast i8* %l3_3 to i256*
+%l3_9 = bitcast i8* %l3_7 to i256*
+%l3_10 = load i256, i256* %l3_8, align 1
+%l3_11 = load i256, i256* %l3_9, align 1
+store i256 %l3_10, i256* %l3_9, align 1
+store i256 %l3_11, i256* %l3_8, align 1
 
 ; OP 4 (pc: 45): SWAP1
 %l4_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
@@ -177,17 +175,15 @@ l4_err_underflow:
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
 l4_ok:
-%l4_2 = alloca [32 x i8], align 16
-%l4_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l4_1
-%l4_4 = getelementptr inbounds i8, i8* %l4_3, i64 -32
-%l4_5 = shl nsw i32 1, 5
-%l4_6 = sext i32 %l4_5 to i64
-%l4_7 = sub nsw i64 0, %l4_6
-%l4_8 = getelementptr inbounds i8, i8* %l4_4, i64 %l4_7
-%l4_9 = getelementptr inbounds [32 x i8], [32 x i8]* %l4_2, i64 0, i64 0
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 16 dereferenceable(32) %l4_9, i8* noundef nonnull align 1 dereferenceable(32) %l4_4, i64 32, i1 false)
-tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l4_4, i8* noundef nonnull align 1 dereferenceable(32) %l4_8, i64 32, i1 false)
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l4_8, i8* noundef nonnull align 16 dereferenceable(32) %l4_9, i64 32, i1 false)
+%l4_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l4_1
+%l4_3 = getelementptr inbounds i8, i8* %l4_2, i64 -32
+%l4_7 = getelementptr inbounds i8, i8* %l4_3, i64 -32
+%l4_8 = bitcast i8* %l4_3 to i256*
+%l4_9 = bitcast i8* %l4_7 to i256*
+%l4_10 = load i256, i256* %l4_8, align 1
+%l4_11 = load i256, i256* %l4_9, align 1
+store i256 %l4_10, i256* %l4_9, align 1
+store i256 %l4_11, i256* %l4_8, align 1
 
 ; OP 5 (pc: 46): PUSH1 32
 %l5_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
@@ -521,103 +517,94 @@ l16_err_underflow:
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
 l16_ok:
-%l16_2 = alloca [32 x i8], align 16
-%l16_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l16_1
-%l16_4 = getelementptr inbounds i8, i8* %l16_3, i64 -32
-%l16_5 = shl nsw i32 1, 5
-%l16_6 = sext i32 %l16_5 to i64
-%l16_7 = sub nsw i64 0, %l16_6
-%l16_8 = getelementptr inbounds i8, i8* %l16_4, i64 %l16_7
-%l16_9 = getelementptr inbounds [32 x i8], [32 x i8]* %l16_2, i64 0, i64 0
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 16 dereferenceable(32) %l16_9, i8* noundef nonnull align 1 dereferenceable(32) %l16_4, i64 32, i1 false)
-tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l16_4, i8* noundef nonnull align 1 dereferenceable(32) %l16_8, i64 32, i1 false)
-call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l16_8, i8* noundef nonnull align 16 dereferenceable(32) %l16_9, i64 32, i1 false)
+%l16_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l16_1
+%l16_3 = getelementptr inbounds i8, i8* %l16_2, i64 -32
+%l16_7 = getelementptr inbounds i8, i8* %l16_3, i64 -32
+%l16_8 = bitcast i8* %l16_3 to i256*
+%l16_9 = bitcast i8* %l16_7 to i256*
+%l16_10 = load i256, i256* %l16_8, align 1
+%l16_11 = load i256, i256* %l16_9, align 1
+store i256 %l16_10, i256* %l16_9, align 1
+store i256 %l16_11, i256* %l16_8, align 1
 
 ; OP 17 (pc: 63): c10 (Generic Callback)
-%l17_in_buffer_alloca = alloca i8, i64 64, align 32
 %l17_in_stack_pos = load i64, i64* %stack_position_ptr
-%l17_in_stack_check1 = icmp ult i64 %l17_in_stack_pos, 64
-br i1 %l17_in_stack_check1, label %l17_err_underflow, label %l17_in_ok1
+%l17_in_underflow = icmp ult i64 %l17_in_stack_pos, 64
+br i1 %l17_in_underflow, label %l17_err_underflow, label %l17_in_ok
 l17_err_underflow:
   store i64 63, i64* %pc_ptr
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
-l17_in_ok1:
-%l17_in_stack_read_pos = sub i64 %l17_in_stack_pos, 64
-%l17_in_stack_read_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l17_in_stack_read_pos
-%l17_in_src_ptr_0 = getelementptr i8, i8* %l17_in_stack_read_ptr, i64 0
-%l17_in_dst_ptr_0 = getelementptr i8, i8* %l17_in_buffer_alloca, i64 0 ; Use alloca buffer ptr
-%l17_in_src_ptr_lo_0 = bitcast i8* %l17_in_src_ptr_0 to i128*
-%l17_in_src_ptr_hi_0 = getelementptr i128, i128* %l17_in_src_ptr_lo_0, i32 1
-%l17_in_dst_ptr_lo_0 = bitcast i8* %l17_in_dst_ptr_0 to i128*
-%l17_in_dst_ptr_hi_0 = getelementptr i128, i128* %l17_in_dst_ptr_lo_0, i32 1
-%l17_in_word_lo_0 = load i128, i128* %l17_in_src_ptr_lo_0
-%l17_in_word_hi_0 = load i128, i128* %l17_in_src_ptr_hi_0
-%l17_in_reversed_lo_0 = call i128 @llvm.bswap.i128(i128 %l17_in_word_hi_0)
-%l17_in_reversed_hi_0 = call i128 @llvm.bswap.i128(i128 %l17_in_word_lo_0)
-store i128 %l17_in_reversed_lo_0, i128* %l17_in_dst_ptr_lo_0
-store i128 %l17_in_reversed_hi_0, i128* %l17_in_dst_ptr_hi_0
-%l17_in_src_ptr_1 = getelementptr i8, i8* %l17_in_stack_read_ptr, i64 32
-%l17_in_dst_ptr_1 = getelementptr i8, i8* %l17_in_buffer_alloca, i64 32 ; Use alloca buffer ptr
-%l17_in_src_ptr_lo_1 = bitcast i8* %l17_in_src_ptr_1 to i128*
-%l17_in_src_ptr_hi_1 = getelementptr i128, i128* %l17_in_src_ptr_lo_1, i32 1
-%l17_in_dst_ptr_lo_1 = bitcast i8* %l17_in_dst_ptr_1 to i128*
-%l17_in_dst_ptr_hi_1 = getelementptr i128, i128* %l17_in_dst_ptr_lo_1, i32 1
-%l17_in_word_lo_1 = load i128, i128* %l17_in_src_ptr_lo_1
-%l17_in_word_hi_1 = load i128, i128* %l17_in_src_ptr_hi_1
-%l17_in_reversed_lo_1 = call i128 @llvm.bswap.i128(i128 %l17_in_word_hi_1)
-%l17_in_reversed_hi_1 = call i128 @llvm.bswap.i128(i128 %l17_in_word_lo_1)
-store i128 %l17_in_reversed_lo_1, i128* %l17_in_dst_ptr_lo_1
-store i128 %l17_in_reversed_hi_1, i128* %l17_in_dst_ptr_hi_1
-%l17_new_evm_stack_pos_after_in = sub i64 %l17_in_stack_pos, 64
-store i64 %l17_new_evm_stack_pos_after_in, i64* %stack_position_ptr, align 8
-%l17_out_buffer_alloca = alloca i8, i64 32, align 32
+l17_in_ok:
+%l17_in_read_pos = sub i64 %l17_in_stack_pos, 64
+%l17_in_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l17_in_read_pos
+%l17_stack_pos_after_in = sub i64 %l17_in_stack_pos, 64
+store i64 %l17_stack_pos_after_in, i64* %stack_position_ptr, align 8
 %l17_out_stack_pos = load i64, i64* %stack_position_ptr
-%l17_overflow_check = icmp ugt i64 %l17_out_stack_pos, 32704
-br i1 %l17_overflow_check, label %l17_err_overflow, label %l17_out_ok1
-l17_err_overflow:
-  store i64 63, i64* %pc_ptr
-  store i32 -11, i32* %exitcode_ptr
-  br label %error_return
-l17_out_ok1:
+%l17_out_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l17_out_stack_pos
 store i64 63, i64* %pc_ptr
-%l17_opcode_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
-%l17_opcode_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)** %l17_opcode_fn_ptr_addr, align 8
-%l17_callctx_ptr_arg = bitcast %struct.evm_callctx* %callctx to i8*
-%l17_call_ret = call i32 %l17_opcode_fn_ptr(
-    i8* %l17_callctx_ptr_arg,
+%l17_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
+%l17_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)** %l17_fn_ptr_addr, align 8
+%l17_ctx_as_i8 = bitcast %struct.evm_callctx* %callctx to i8*
+%l17_ret = call i32 %l17_fn_ptr(
+    i8* %l17_ctx_as_i8,
     i8 10,
-    i8* %l17_in_buffer_alloca,
+    i8* %l17_in_ptr,
     i16 64,
-    i8* %l17_out_buffer_alloca,
+    i8* %l17_out_ptr,
     i16 32,
     i64* %stack_gasleft_ptr
 )
-%l17_call_ret_check = icmp ne i32 %l17_call_ret, 0
-br i1 %l17_call_ret_check, label %l17_err_callback, label %l17_callback_ok
+%l17_ret_check = icmp ne i32 %l17_ret, 0
+br i1 %l17_ret_check, label %l17_err_callback, label %l17_callback_ok
 l17_err_callback:
   store i64 63, i64* %pc_ptr
-  store i32 %l17_call_ret, i32* %exitcode_ptr
+  store i32 %l17_ret, i32* %exitcode_ptr
   br label %error_return
 l17_callback_ok:
-%l17_evm_stack_write_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l17_out_stack_pos
-%l17_out_src_ptr_0 = getelementptr i8, i8* %l17_out_buffer_alloca, i64 0
-%l17_out_dst_ptr_0 = getelementptr i8, i8* %l17_evm_stack_write_ptr, i64 0
-%l17_out_src_ptr_lo_0 = bitcast i8* %l17_out_src_ptr_0 to i128*
-%l17_out_src_ptr_hi_0 = getelementptr i128, i128* %l17_out_src_ptr_lo_0, i32 1
-%l17_out_dst_ptr_lo_0 = bitcast i8* %l17_out_dst_ptr_0 to i128*
-%l17_out_dst_ptr_hi_0 = getelementptr i128, i128* %l17_out_dst_ptr_lo_0, i32 1
-%l17_out_word_lo_0 = load i128, i128* %l17_out_src_ptr_lo_0
-%l17_out_word_hi_0 = load i128, i128* %l17_out_src_ptr_hi_0
-%l17_out_reversed_lo_0 = call i128 @llvm.bswap.i128(i128 %l17_out_word_hi_0)
-%l17_out_reversed_hi_0 = call i128 @llvm.bswap.i128(i128 %l17_out_word_lo_0)
-store i128 %l17_out_reversed_lo_0, i128* %l17_out_dst_ptr_lo_0
-store i128 %l17_out_reversed_hi_0, i128* %l17_out_dst_ptr_hi_0
-%l17_new_evm_stack_pos_after_out = add i64 %l17_out_stack_pos, 32
-store i64 %l17_new_evm_stack_pos_after_out, i64* %stack_position_ptr, align 8
+%l17_new_stack_pos_after_out = add i64 %l17_out_stack_pos, 32
+store i64 %l17_new_stack_pos_after_out, i64* %stack_position_ptr, align 8
 
-; OP 18 (pc: 64): STOP
+; OP 18 (pc: 64): c72 (Generic Callback)
+%l18_in_stack_pos = load i64, i64* %stack_position_ptr
+%l18_in_underflow = icmp ult i64 %l18_in_stack_pos, 64
+br i1 %l18_in_underflow, label %l18_err_underflow, label %l18_in_ok
+l18_err_underflow:
+  store i64 64, i64* %pc_ptr
+  store i32 -10, i32* %exitcode_ptr
+  br label %error_return
+l18_in_ok:
+%l18_in_read_pos = sub i64 %l18_in_stack_pos, 64
+%l18_in_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l18_in_read_pos
+%l18_stack_pos_after_in = sub i64 %l18_in_stack_pos, 64
+store i64 %l18_stack_pos_after_in, i64* %stack_position_ptr, align 8
+%l18_out_stack_pos = load i64, i64* %stack_position_ptr
+%l18_out_ptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l18_out_stack_pos
 store i64 64, i64* %pc_ptr
+%l18_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
+%l18_fn_ptr = load i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)** %l18_fn_ptr_addr, align 8
+%l18_ctx_as_i8 = bitcast %struct.evm_callctx* %callctx to i8*
+%l18_ret = call i32 %l18_fn_ptr(
+    i8* %l18_ctx_as_i8,
+    i8 72,
+    i8* %l18_in_ptr,
+    i16 64,
+    i8* %l18_out_ptr,
+    i16 64,
+    i64* %stack_gasleft_ptr
+)
+%l18_ret_check = icmp ne i32 %l18_ret, 0
+br i1 %l18_ret_check, label %l18_err_callback, label %l18_callback_ok
+l18_err_callback:
+  store i64 64, i64* %pc_ptr
+  store i32 %l18_ret, i32* %exitcode_ptr
+  br label %error_return
+l18_callback_ok:
+%l18_new_stack_pos_after_out = add i64 %l18_out_stack_pos, 64
+store i64 %l18_new_stack_pos_after_out, i64* %stack_position_ptr, align 8
+
+; OP 19 (pc: 65): STOP
+store i64 65, i64* %pc_ptr
 br label %graceful_return
 
 br label %graceful_return
@@ -626,19 +613,19 @@ graceful_return:
 %out_1 = load i64, i64* %heap_stack_position_ptr, align 8
 %out_2 = getelementptr inbounds i8, i8* %heap_stack_addr, i64 %out_1
 %out_3 = load i64, i64* %stack_position_ptr
-%out_stack_check1 = icmp ult i64 %out_3, 64
+%out_stack_check1 = icmp ult i64 %out_3, 96
 br i1 %out_stack_check1, label %out_err1, label %out_ok1
 out_err1:
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
 out_ok1:
-%out_stack_check2 = icmp ugt i64 %out_1, 8128
+%out_stack_check2 = icmp ugt i64 %out_1, 8096
 br i1 %out_stack_check2, label %out_err2, label %out_ok2
 out_err2:
   store i32 -11, i32* %exitcode_ptr
   br label %error_return
 out_ok2:
-%out_4 = sub i64 %out_3, 64
+%out_4 = sub i64 %out_3, 96
 %out_5 = getelementptr inbounds i8, i8* %stack_addr, i64 %out_4
 %out_l0_src_ptr = getelementptr i8, i8* %out_5, i64 0
 %out_l0_dst_ptr = getelementptr i8, i8* %out_2, i64 0
@@ -664,9 +651,21 @@ store i128 %out_l0_reversed_hi, i128* %out_l0_dst_ptr_hi
 %out_l1_reversed_hi = call i128 @llvm.bswap.i128(i128 %out_l1_word_lo)
 store i128 %out_l1_reversed_lo, i128* %out_l1_dst_ptr_lo
 store i128 %out_l1_reversed_hi, i128* %out_l1_dst_ptr_hi
-%out_6 = add i64 %out_1, 64
+%out_l2_src_ptr = getelementptr i8, i8* %out_5, i64 64
+%out_l2_dst_ptr = getelementptr i8, i8* %out_2, i64 64
+%out_l2_src_ptr_lo = bitcast i8* %out_l2_src_ptr to i128*
+%out_l2_src_ptr_hi = getelementptr i128, i128* %out_l2_src_ptr_lo, i32 1
+%out_l2_dst_ptr_lo = bitcast i8* %out_l2_dst_ptr to i128*
+%out_l2_dst_ptr_hi = getelementptr i128, i128* %out_l2_dst_ptr_lo, i32 1
+%out_l2_word_lo = load i128, i128* %out_l2_src_ptr_lo
+%out_l2_word_hi = load i128, i128* %out_l2_src_ptr_hi
+%out_l2_reversed_lo = call i128 @llvm.bswap.i128(i128 %out_l2_word_hi)
+%out_l2_reversed_hi = call i128 @llvm.bswap.i128(i128 %out_l2_word_lo)
+store i128 %out_l2_reversed_lo, i128* %out_l2_dst_ptr_lo
+store i128 %out_l2_reversed_hi, i128* %out_l2_dst_ptr_hi
+%out_6 = add i64 %out_1, 96
 store i64 %out_6, i64* %heap_stack_position_ptr, align 8
-%out_7 = sub i64 %out_3, 64
+%out_7 = sub i64 %out_3, 96
 store i64 %out_7, i64* %stack_position_ptr, align 8
 %res_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
 store i64 %res_gas1, i64* %gasleft_ptr

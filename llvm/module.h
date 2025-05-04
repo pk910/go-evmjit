@@ -4,7 +4,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/ExecutionEngine.h>
 
-#include "evm_callctx.h"
+#include "callctx.h"
 
 LLVMModuleRef parseIR(const char* ir, char** error);
 void optimizeModule(LLVMModuleRef mod);

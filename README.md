@@ -186,36 +186,36 @@ This will output the optimized LLVM IR to standard output.
 
 ## EVM0 Opcode Implementation Status
 
-The `irgen` module currently supports parsing the following EVM0 opcodes. "IR" means the opcode logic is directly translated into LLVM IR. "Go Binding" means the IR generates a callout to a Go function that must be provided by the user via `OpBindings`.
+The `irgen` module currently supports parsing the following EVM0 opcodes. "IR Code" means the opcode logic is directly translated into LLVM IR. "Go Binding" means the IR generates a callout to a Go function that must be provided by the user via `OpBindings`.
 
 | Opcode | Name         | Status      |
 | :----- | :----------- | :---------- |
-| 0x00   | STOP         | IR          |
-| 0x01   | ADD          | IR          |
-| 0x02   | MUL          | IR          |
-| 0x03   | SUB          | IR          |
-| 0x04   | DIV          | C Code      |
-| 0x05   | SDIV         | C Code      |
-| 0x06   | MOD          | C Code      |
-| 0x07   | SMOD         | C Code      |
-| 0x08   | ADDMOD       | IR          |
-| 0x09   | MULMOD       | IR          |
-| 0x0A   | EXP          | C Code      |
-| 0x0B   | SIGNEXTEND   | IR          |
-| 0x10   | LT           | IR          |
-| 0x11   | GT           | IR          |
-| 0x12   | SLT          | IR          |
-| 0x13   | SGT          | IR          |
-| 0x14   | EQ           | IR          |
-| 0x15   | ISZERO       | IR          |
-| 0x16   | AND          | IR          |
-| 0x17   | OR           | IR          |
-| 0x18   | XOR          | IR          |
-| 0x19   | NOT          | IR          |
-| 0x1A   | BYTE         | IR          |
-| 0x1B   | SHL          | IR          |
-| 0x1C   | SHR          | IR          |
-| 0x1D   | SAR          | IR          |
+| 0x00   | STOP         | IR Code     |
+| 0x01   | ADD          | IR Code     |
+| 0x02   | MUL          | IR Code     |
+| 0x03   | SUB          | IR Code     |
+| 0x04   | DIV          | Go Binding  |
+| 0x05   | SDIV         | Go Binding  |
+| 0x06   | MOD          | Go Binding  |
+| 0x07   | SMOD         | Go Binding  |
+| 0x08   | ADDMOD       | IR Code     |
+| 0x09   | MULMOD       | IR Code     |
+| 0x0A   | EXP          | Go Binding  |
+| 0x0B   | SIGNEXTEND   | IR Code     |
+| 0x10   | LT           | IR Code     |
+| 0x11   | GT           | IR Code     |
+| 0x12   | SLT          | IR Code     |
+| 0x13   | SGT          | IR Code     |
+| 0x14   | EQ           | IR Code     |
+| 0x15   | ISZERO       | IR Code     |
+| 0x16   | AND          | IR Code     |
+| 0x17   | OR           | IR Code     |
+| 0x18   | XOR          | IR Code     |
+| 0x19   | NOT          | IR Code     |
+| 0x1A   | BYTE         | IR Code     |
+| 0x1B   | SHL          | IR Code     |
+| 0x1C   | SHR          | IR Code     |
+| 0x1D   | SAR          | IR Code     |
 | 0x20   | KECCAK256    | Go Binding  |
 | 0x30   | ADDRESS      | Go Binding  |
 | 0x31   | BALANCE      | Go Binding  |
@@ -244,34 +244,34 @@ The `irgen` module currently supports parsing the following EVM0 opcodes. "IR" m
 | 0x48   | BASEFEE      | Go Binding  |
 | 0x49   | BLOBHASH     | Go Binding  |
 | 0x4A   | BLOBBASEFEE  | Go Binding  |
-| 0x50   | POP          | IR          |
+| 0x50   | POP          | IR Code     |
 | 0x51   | MLOAD        | Go Binding  |
 | 0x52   | MSTORE       | Go Binding  |
 | 0x53   | MSTORE8      | Go Binding  |
 | 0x54   | SLOAD        | Go Binding  |
 | 0x55   | SSTORE       | Go Binding  |
-| 0x56   | JUMP         | IR          |
-| 0x57   | JUMPI        | IR          |
-| 0x58   | PC           | IR          |
+| 0x56   | JUMP         | IR Code     |
+| 0x57   | JUMPI        | IR Code     |
+| 0x58   | PC           | IR Code     |
 | 0x59   | MSIZE        | Go Binding  |
-| 0x5A   | GAS          | IR          |
-| 0x5B   | JUMPDEST     | IR          |
+| 0x5A   | GAS          | IR Code     |
+| 0x5B   | JUMPDEST     | IR Code     |
 | 0x5C   | TLOAD        | Go Binding  |
 | 0x5D   | TSTORE       | Go Binding  |
 | 0x5E   | MCOPY        | Go Binding  |
-| 0x5F   | PUSH0        | IR          |
-| 0x60   | PUSH1        | IR          |
-| 0x61   | PUSH2        | IR          |
+| 0x5F   | PUSH0        | IR Code     |
+| 0x60   | PUSH1        | IR Code     |
+| 0x61   | PUSH2        | IR Code     |
 | ...    | ...          | ...         |
-| 0x7F   | PUSH32       | IR          |
-| 0x80   | DUP1         | IR          |
-| 0x81   | DUP2         | IR          |
+| 0x7F   | PUSH32       | IR Code     |
+| 0x80   | DUP1         | IR Code     |
+| 0x81   | DUP2         | IR Code     |
 | ...    | ...          | ...         |
-| 0x8F   | DUP16        | IR          |
-| 0x90   | SWAP1        | IR          |
-| 0x91   | SWAP2        | IR          |
+| 0x8F   | DUP16        | IR Code     |
+| 0x90   | SWAP1        | IR Code     |
+| 0x91   | SWAP2        | IR Code     |
 | ...    | ...          | ...         |
-| 0x9F   | SWAP16       | IR          |
+| 0x9F   | SWAP16       | IR Code     |
 | 0xA0   | LOG0         | Go Binding  |
 | 0xA1   | LOG1         | Go Binding  |
 | 0xA2   | LOG2         | Go Binding  |
@@ -284,7 +284,7 @@ The `irgen` module currently supports parsing the following EVM0 opcodes. "IR" m
 | 0xF4   | DELEGATECALL | Go Binding  |
 | 0xF5   | CREATE2      | Go Binding  |
 | 0xFA   | STATICCALL   | Go Binding  |
-| 0xFD   | REVERT       | IR          |
-| 0xFE   | INVALID      | IR          |
+| 0xFD   | REVERT       | IR Code     |
+| 0xFE   | INVALID      | IR Code     |
 | 0xFF   | SELFDESTRUCT | Go Binding  |
 

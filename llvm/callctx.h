@@ -1,8 +1,8 @@
-#ifndef EVM_CALLCTX_H
-#define EVM_CALLCTX_H
+#ifndef CALLCTX_H
+#define CALLCTX_H
 
 #include <stdint.h>
-#include "evm_stack.h"
+#include "stack.h"
 
 struct evm_callctx;
 typedef struct evm_callctx evm_callctx;
