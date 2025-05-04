@@ -16,10 +16,9 @@ l{{ .Id }}_err_overflow:
   br label %error_return
 l{{ .Id }}_ok:
 {{- end }}
-%l{{ .Id }}_3 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_2
-%l{{ .Id }}_aptr = getelementptr inbounds i8, i8* %l{{ .Id }}_3, i64 -32
+%l{{ .Id }}_aptr = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_2
 %l{{ .Id }}_aptr2 = bitcast i8* %l{{ .Id }}_aptr to i256*
-store i256 {{ u256 .Data  }}, i256* %l{{ .Id }}_aptr2, align 1
+store i256 {{ u256 .Data }}, i256* %l{{ .Id }}_aptr2, align 1
 %l{{ .Id }}_6 = add i64 %l{{ .Id }}_2, 32
 store i64 %l{{ .Id }}_6, i64* %stack_position_ptr, align 8
 {{ end }}
