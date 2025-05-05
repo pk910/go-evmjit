@@ -6,36 +6,16 @@
 {{- end }} 
 
 {{- define "ircode" }}
-%l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
-{{- if .StackCheck }}
-%l{{ .Id }}_stack_check = icmp ult i64 %l{{ .Id }}_1, 64
-br i1 %l{{ .Id }}_stack_check, label %l{{ .Id }}_err1, label %l{{ .Id }}_ok_sar
-l{{ .Id }}_err1:
-  store i64 {{ .Pc }}, i64* %pc_ptr
-  store i32 -10, i32* %exitcode_ptr
-  br label %error_return
-l{{ .Id }}_ok_sar:
-{{- end }}
-%l{{ .Id }}_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1
-%l{{ .Id }}_shiftptr = getelementptr inbounds i8, i8* %l{{ .Id }}_2, i64 -32
-%l{{ .Id }}_valptr = getelementptr inbounds i8, i8* %l{{ .Id }}_shiftptr, i64 -32
-%l{{ .Id }}_shiftptr2 = bitcast i8* %l{{ .Id }}_shiftptr to i256*
-%l{{ .Id }}_valptr2 = bitcast i8* %l{{ .Id }}_valptr to i256*
-%l{{ .Id }}_shift = load i256, i256* %l{{ .Id }}_shiftptr2, align 1
-%l{{ .Id }}_value = load i256, i256* %l{{ .Id }}_valptr2, align 1
-%l{{ .Id }}_shift_check = icmp uge i256 %l{{ .Id }}_shift, 256
+%l{{ .Id }}_shift_check = icmp uge i256 {{ .StackRef0 }}, 256
 br i1 %l{{ .Id }}_shift_check, label %l{{ .Id }}_shift_large, label %l{{ .Id }}_shift_ok
 l{{ .Id }}_shift_large:
-  %l{{ .Id }}_sign_bit = lshr i256 %l{{ .Id }}_value, 255
+  %l{{ .Id }}_sign_bit = lshr i256 {{ .StackRef1 }}, 255
   %l{{ .Id }}_is_negative = icmp eq i256 %l{{ .Id }}_sign_bit, 1
   %l{{ .Id }}_res_large_shift = select i1 %l{{ .Id }}_is_negative, i256 -1, i256 0
   br label %l{{ .Id }}_store_res
 l{{ .Id }}_shift_ok:
-  %l{{ .Id }}_shifted_val = ashr i256 %l{{ .Id }}_value, %l{{ .Id }}_shift
+  %l{{ .Id }}_shifted_val = ashr i256 {{ .StackRef1 }}, {{ .StackRef0 }}
   br label %l{{ .Id }}_store_res
 l{{ .Id }}_store_res:
-%l{{ .Id }}_final_res = phi i256 [ %l{{ .Id }}_res_large_shift, %l{{ .Id }}_shift_large ], [ %l{{ .Id }}_shifted_val, %l{{ .Id }}_shift_ok ]
-store i256 %l{{ .Id }}_final_res, i256* %l{{ .Id }}_valptr2, align 1
-%l{{ .Id }}_sdv = add i64 %l{{ .Id }}_1, -32
-store i64 %l{{ .Id }}_sdv, i64* %stack_position_ptr, align 8
+%l{{ .Id }}_res0 = phi i256 [ %l{{ .Id }}_res_large_shift, %l{{ .Id }}_shift_large ], [ %l{{ .Id }}_shifted_val, %l{{ .Id }}_shift_ok ]
 {{ end }} 

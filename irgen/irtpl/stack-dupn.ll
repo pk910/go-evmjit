@@ -6,27 +6,20 @@
 {{- end }} 
 
 {{- define "ircode" }}
+{{- if gt .LoadIndex 0 }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
 {{- if .StackCheck }}
-%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul .Position 32 }}
-br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_check_overflow
+%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul .LoadIndex 32 }}
+br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_ok
 l{{ .Id }}_err_underflow:
   store i64 {{ .Pc }}, i64* %pc_ptr
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
-l{{ .Id }}_check_overflow:
-%l{{ .Id }}_overflow_check = icmp ugt i64 %l{{ .Id }}_1, {{ sub (mul .MaxStack 32) 32 }}
-br i1 %l{{ .Id }}_overflow_check, label %l{{ .Id }}_err_overflow, label %l{{ .Id }}_ok
-l{{ .Id }}_err_overflow:
-  ret i32 -11
 l{{ .Id }}_ok:
 {{- end }}
 %l{{ .Id }}_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1
-%l{{ .Id }}_3 = shl nsw i32 {{ .Position }}, 5
-%l{{ .Id }}_4 = sext i32 %l{{ .Id }}_3 to i64
-%l{{ .Id }}_5 = sub nsw i64 0, %l{{ .Id }}_4
-%l{{ .Id }}_6 = getelementptr inbounds i8, i8* %l{{ .Id }}_2, i64 %l{{ .Id }}_5
-tail call void @llvm.memcpy.p0i8.p0i8.i64(i8* noundef nonnull align 1 dereferenceable(32) %l{{ .Id }}_2, i8* noundef nonnull align 1 dereferenceable(32) %l{{ .Id }}_6, i64 32, i1 false)
-%l{{ .Id }}_7 = add i64 %l{{ .Id }}_1, 32
-store i64 %l{{ .Id }}_7, i64* %stack_position_ptr, align 8
+%l{{ .Id }}_3 = getelementptr inbounds i8, i8* %l{{ .Id }}_2, i64 -{{ mul .LoadIndex 32 }}
+%l{{ .Id }}_4 = bitcast i8* %l{{ .Id }}_3 to i256*
+%l{{ .Id }}_res0 = load i256, i256* %l{{ .Id }}_4, align 1
+{{- end }}
 {{ end }}
