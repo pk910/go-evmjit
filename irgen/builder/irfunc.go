@@ -47,13 +47,16 @@ type IRStackRef struct {
 }
 
 type IROpcode struct {
-	name      string
-	id        uint32
-	pc        uint32
-	gas       int32
-	tpl       *template.Template
-	model     map[string]interface{}
-	stackLoad []string
+	name          string
+	id            uint32
+	pc            uint32
+	gas           int32
+	tpl           *template.Template
+	model         map[string]interface{}
+	stackLoad     []string
+	stackStore    map[string]interface{}
+	skipGasCheck  bool
+	breakGasGroup bool
 }
 
 // NewIRFunction creates a new IRFunction.
@@ -78,12 +81,10 @@ func (irf *IRFunction) SetStackInputOutputs(inputs, outputs uint8, stacksize uin
 	irf.heapstack = stacksize
 }
 
-func (irf *IRFunction) String() string {
-	fncode := bytes.Buffer{}
+func (irf *IRFunction) generateOpIRCode() (string, string) {
 	defcode := bytes.Buffer{}
 	opscode := bytes.Buffer{}
 
-	gastpl := irtpl.GetTemplate("evmc-gas.ll")
 	ophelper := irtpl.GetTemplate("op-helper.ll")
 
 	for _, branch := range irf.branches {
@@ -94,24 +95,66 @@ br_%d:
 `, branch.pc, branch.pc))
 		}
 
-		for _, opcode := range branch.opcodes {
+		for idx, opcode := range branch.opcodes {
 			model := map[string]interface{}{
 				"Id":         opcode.id,
 				"Pc":         opcode.pc,
-				"Gas":        opcode.gas,
 				"Verbose":    irf.verbose,
 				"StackCheck": irf.stackcheck,
 				"MaxStack":   uint64(irf.maxstack),
+				"StackStore": "",
 			}
 			if opcode.model != nil {
 				for k, v := range opcode.model {
 					model[k] = v
 				}
 			}
+
 			opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
 			opcode.tpl.ExecuteTemplate(&opscode, "irhead", model)
-			if opcode.gas > 0 {
-				gastpl.ExecuteTemplate(&opscode, "gascheck", model)
+			if opcode.gas > 0 && !opcode.skipGasCheck {
+				// collect all followup static gas checks
+				totalGas := int32(opcode.gas)
+				diffPcs := []map[string]interface{}{
+					{
+						"Id":   opcode.id,
+						"Pc":   opcode.pc,
+						"Gas":  totalGas,
+						"Last": "",
+					},
+				}
+				lastId := fmt.Sprintf("%v", opcode.id)
+
+				if !opcode.breakGasGroup {
+					for _, followup := range branch.opcodes[idx+1:] {
+						if followup.gas > 0 && !followup.skipGasCheck && len(followup.stackLoad) == 0 {
+							totalGas += followup.gas
+							diffPcs = append(diffPcs, map[string]interface{}{
+								"Id":   followup.id,
+								"Pc":   followup.pc,
+								"Gas":  totalGas,
+								"Last": lastId,
+							})
+							followup.skipGasCheck = true
+							lastId = fmt.Sprintf("%v", followup.id)
+
+							if followup.breakGasGroup {
+								break
+							}
+						} else {
+							break
+						}
+					}
+				}
+
+				ophelper.ExecuteTemplate(&opscode, "gas-check", map[string]interface{}{
+					"Id":      opcode.id,
+					"Pc":      opcode.pc,
+					"Gas":     totalGas,
+					"Pcs":     diffPcs,
+					"Last":    lastId,
+					"Verbose": irf.verbose,
+				})
 			}
 			if len(opcode.stackLoad) > 0 {
 				ophelper.ExecuteTemplate(&opscode, "stack-load", map[string]interface{}{
@@ -119,42 +162,40 @@ br_%d:
 					"Pc":         opcode.pc,
 					"Count":      uint64(len(opcode.stackLoad)),
 					"StackCheck": irf.stackcheck,
+					"Verbose":    irf.verbose,
 				})
+			}
+			if len(opcode.stackStore) > 0 {
+				storeBuf := bytes.Buffer{}
+				opcode.stackStore["Id"] = opcode.id
+				opcode.stackStore["Verbose"] = irf.verbose
+				ophelper.ExecuteTemplate(&storeBuf, "stack-store", opcode.stackStore)
+				model["StackStore"] = storeBuf.String()
 			}
 			opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
 		}
 
-		if branch.stackPos > branch.heapPos {
-			resVars := []map[string]interface{}{}
-			index := 0
-			for stackPos := branch.heapPos; stackPos < branch.stackPos; stackPos++ {
-				ref := branch.stackRefs[stackPos]
-				if ref == nil {
-					fmt.Println("ref is nil", stackPos)
-				}
-				resVars = append(resVars, map[string]interface{}{
-					"Index": uint64(index),
-					"Ref":   ref.refVar,
-				})
-				index++
-			}
-
-			ophelper.ExecuteTemplate(&opscode, "stack-store", map[string]interface{}{
-				"Id":         branch.pc,
-				"Pc":         branch.pc,
-				"Refs":       resVars,
-				"Count":      uint64(len(resVars)),
-				"StackCheck": irf.stackcheck,
-			})
+		stackStoreModel := irf.getStackStoreModel(branch)
+		if len(stackStoreModel) > 0 {
+			stackStoreModel["Id"] = fmt.Sprintf("b%d", branch.pc)
+			stackStoreModel["StackCheck"] = irf.stackcheck
+			stackStoreModel["Verbose"] = irf.verbose
+			ophelper.ExecuteTemplate(&opscode, "stack-store", stackStoreModel)
 		}
 	}
 
-	fncode.WriteString(defcode.String())
+	return defcode.String(), opscode.String()
+}
+
+func (irf *IRFunction) String() string {
+	fncode := bytes.Buffer{}
+	defcode, opscode := irf.generateOpIRCode()
+
+	fncode.WriteString(defcode)
 	fncode.WriteString(fmt.Sprintf(`
 
 define i32 @%s(%%struct.evm_callctx* noundef %%callctx) {
 entry:
-%%zero32_ptr = bitcast [32 x i8]* @const_zero32 to i8*
 %%stack_alloc = alloca [%d x i8], align 32
 %%stack_addr = getelementptr inbounds [%d x i8], [%d x i8]* %%stack_alloc, i64 0, i64 0
 %%stack_position_ptr = alloca i64, align 4
@@ -206,7 +247,7 @@ store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 	})
 
 	// add opcodes
-	fncode.WriteString(opscode.String())
+	fncode.WriteString(opscode)
 
 	fncode.WriteString(`
 br label %graceful_return
@@ -238,6 +279,34 @@ ret i32 %exitcode_val
 	return fncode.String()
 }
 
+func (irf *IRFunction) getStackStoreModel(branch *IRBranch) map[string]interface{} {
+	var model map[string]interface{}
+
+	if branch.stackPos > branch.heapPos {
+		resVars := []map[string]interface{}{}
+		index := 0
+		for stackPos := branch.heapPos; stackPos < branch.stackPos; stackPos++ {
+			ref := branch.stackRefs[stackPos]
+			if ref == nil {
+				fmt.Println("ref is nil", stackPos)
+				continue
+			}
+			resVars = append(resVars, map[string]interface{}{
+				"Index": uint64(index),
+				"Ref":   ref.refVar,
+			})
+			index++
+		}
+
+		model = map[string]interface{}{
+			"Refs":  resVars,
+			"Count": uint64(len(resVars)),
+		}
+	}
+
+	return model
+}
+
 func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOut int, gascost int32, model map[string]interface{}) error {
 	if irf.branchCount == 0 {
 		irf.branches = append(irf.branches, &IRBranch{
@@ -264,12 +333,10 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOu
 		model: model,
 	}
 
-	fmt.Println("opcode", opcode.id, "stackIn", stackIn)
 	if stackIn > 0 {
 		index := 0
 		needStackCheck := false
 		for stackPos := branch.stackPos - 1; stackPos >= branch.stackPos-stackIn; stackPos-- {
-			fmt.Println("stackPos", stackPos)
 			stackRef := branch.stackRefs[stackPos]
 			if stackRef != nil {
 				delete(branch.stackRefs, stackPos)
@@ -387,7 +454,6 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
-	fmt.Println("stackPos", branch.stackPos, "heapPos", branch.heapPos)
 	if branch.stackPos-int(n+1) < branch.heapPos {
 		// need to load
 		stackPos := branch.heapPos - (branch.stackPos - int(n+1))
@@ -498,13 +564,20 @@ func (irf *IRFunction) AppendSar() error {
 	return irf.appendOpcode("logic-sar.ll", 1, 2, 1, 3, nil)
 }
 
-func (irf *IRFunction) AppendHighOpcode(opcode, inputs, outputs uint8, gascost int32) error {
-	return irf.appendOpcode("evmc-call.ll", 1, int(inputs), int(outputs), gascost, map[string]interface{}{
-		"Name":    fmt.Sprintf("c%d", opcode),
-		"Opcode":  uint64(opcode),
+func (irf *IRFunction) AppendHighOpcode(op, inputs, outputs uint8, gascost int32, isStop bool) error {
+	err := irf.appendOpcode("evmc-call.ll", 1, int(inputs), int(outputs), gascost, map[string]interface{}{
+		"Name":    fmt.Sprintf("c%d", op),
+		"Opcode":  uint64(op),
 		"Inputs":  uint64(inputs),
 		"Outputs": uint64(outputs),
 	})
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.breakGasGroup = isStop
+	return nil
 }
 
 func (irf *IRFunction) AppendJumpDest() error {
@@ -518,15 +591,38 @@ func (irf *IRFunction) AppendJumpDest() error {
 }
 
 func (irf *IRFunction) AppendJump() error {
-	return irf.appendOpcode("flow-jump.ll", 1, 1, 0, 8, nil)
+	err := irf.appendOpcode("flow-jump.ll", 1, 1, 0, 8, nil)
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.stackStore = irf.getStackStoreModel(branch)
+	opcode.breakGasGroup = true
+	return nil
 }
 
 func (irf *IRFunction) AppendJumpI() error {
-	return irf.appendOpcode("flow-jumpi.ll", 1, 2, 0, 10, nil)
+	err := irf.appendOpcode("flow-jumpi.ll", 1, 2, 0, 10, nil)
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.stackStore = irf.getStackStoreModel(branch)
+	opcode.breakGasGroup = true
+	return nil
 }
 
 func (irf *IRFunction) AppendStop() error {
-	return irf.appendOpcode("flow-stop.ll", 1, 0, 0, 0, nil)
+	err := irf.appendOpcode("flow-stop.ll", 1, 0, 0, 0, nil)
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.breakGasGroup = true
+	return nil
 }
 
 func (irf *IRFunction) AppendPc() error {

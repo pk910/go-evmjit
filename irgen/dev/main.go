@@ -30,6 +30,16 @@ func main() {
 	irf.AppendShr()
 	irf.AppendDupN(2)
 
+	irf.AppendJumpDest()
+	irf.AppendPushN(1, []uint8{1})
+	irf.AppendAdd()
+	irf.AppendPushN(1, []uint8{50})
+	irf.AppendDupN(2)
+	irf.AppendLt()
+	irf.AppendPushN(1, []uint8{46})
+	irf.AppendJumpI()
+	irf.AppendStop()
+
 	/*
 		irf.AppendPushN(32, []uint8{0x21, 0x14, 0x16, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x04, 0x05, 0x02, 0x01})
 		irf.AppendPushN(1, []uint8{2})
@@ -61,7 +71,7 @@ func main() {
 	*/
 
 	//irf.AppendStop()
-	irf.SetStackInputOutputs(0, 4, 256)
+	irf.SetStackInputOutputs(0, 3, 256)
 
 	irb := builder.NewIRBuilder()
 	irb.AddFunction(irf)
