@@ -1,0 +1,172 @@
+; ModuleID = 'contract1-test.ll'
+source_filename = "contract1-test.ll"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-linux-gnu"
+
+%struct.evm_callctx = type { %struct.evm_stack*, i64, i64, i32 (i8*, i8, i8*, i16, i8*, i16, i64*)*, i8* }
+%struct.evm_stack = type { i8*, i64 }
+
+; Function Attrs: nofree nosync nounwind
+define i32 @test(%struct.evm_callctx* nocapture noundef %callctx) local_unnamed_addr #0 {
+entry:
+  %callctx_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 0
+  %pc_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 1
+  %gasleft_ptr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 2
+  %gasleft_val = load i64, i64* %gasleft_ptr, align 4
+  %heap_stack = load %struct.evm_stack*, %struct.evm_stack** %callctx_ptr, align 8
+  %heap_stack_ptr = getelementptr %struct.evm_stack, %struct.evm_stack* %heap_stack, i64 0, i32 0
+  %heap_stack_addr = load i8*, i8** %heap_stack_ptr, align 8
+  %heap_stack_position_ptr = getelementptr %struct.evm_stack, %struct.evm_stack* %heap_stack, i64 0, i32 1
+  %l0_gas2 = icmp ult i64 %gasleft_val, 3
+  br i1 %l0_gas2, label %l0_gaserr, label %l0_gasok
+
+l0_gaserr:                                        ; preds = %entry
+  store i64 0, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l0_gasok:                                         ; preds = %entry
+  %l0_gas4 = add i64 %gasleft_val, -3
+  %l1_gas2 = icmp ult i64 %l0_gas4, 3
+  br i1 %l1_gas2, label %l1_gaserr, label %l1_gasok
+
+l1_gaserr:                                        ; preds = %l0_gasok
+  store i64 2, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l1_gasok:                                         ; preds = %l0_gasok
+  %l1_gas4 = add i64 %gasleft_val, -6
+  %l2_gas2 = icmp ult i64 %l1_gas4, 4
+  br i1 %l2_gas2, label %l2_gaserr, label %l2_gasok
+
+l2_gaserr:                                        ; preds = %l1_gasok
+  store i64 5, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l2_gasok:                                         ; preds = %l1_gasok
+  %l2_gas4 = add i64 %gasleft_val, -10
+  %l4_gas2 = icmp ult i64 %l2_gas4, 3
+  br i1 %l4_gas2, label %l4_gaserr, label %l4_gasok
+
+l4_gaserr:                                        ; preds = %l2_gasok
+  store i64 38, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l4_gasok:                                         ; preds = %l2_gasok
+  %l4_gas4 = add i64 %gasleft_val, -13
+  %l5_gas2 = icmp ult i64 %l4_gas4, 3
+  br i1 %l5_gas2, label %l5_gaserr, label %l5_gasok
+
+l5_gaserr:                                        ; preds = %l4_gasok
+  store i64 40, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l5_gasok:                                         ; preds = %l4_gasok
+  %l5_gas4 = add i64 %gasleft_val, -16
+  %l6_gas2 = icmp ult i64 %l5_gas4, 12
+  br i1 %l6_gas2, label %l6_gaserr, label %l6_gasok
+
+l6_gaserr:                                        ; preds = %l5_gasok
+  store i64 45, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l6_gasok:                                         ; preds = %l5_gasok
+  %l6_gas4 = add i64 %gasleft_val, -28
+  %l10_gas232 = icmp ult i64 %l6_gas4, 4
+  br i1 %l10_gas232, label %l10_gaserr, label %l10_gasok.preheader
+
+l10_gasok.preheader:                              ; preds = %l6_gasok
+  %0 = add i64 %gasleft_val, -1362
+  br label %l10_gasok
+
+l10_gaserr:                                       ; preds = %l15_gasok, %l17_jump.1, %l6_gasok
+  %stack_gasleft_ptr.1.lcssa = phi i64 [ %l6_gas4, %l6_gasok ], [ %l15_gas4, %l15_gasok ], [ %l15_gas4.1, %l17_jump.1 ]
+  store i64 47, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l10_gasok:                                        ; preds = %l17_jump.1, %l10_gasok.preheader
+  %stack_gasleft_ptr.134 = phi i64 [ %l6_gas4, %l10_gasok.preheader ], [ %l15_gas4.1, %l17_jump.1 ]
+  %stack_alloc.sroa.12.033 = phi i256 [ 4, %l10_gasok.preheader ], [ %l12_res0.1, %l17_jump.1 ]
+  %l10_gas4 = add i64 %stack_gasleft_ptr.134, -4
+  %l12_gas2 = icmp ult i64 %l10_gas4, 9
+  br i1 %l12_gas2, label %l12_gaserr, label %l12_gasok
+
+l12_gaserr:                                       ; preds = %l10_gasok.1, %l10_gasok
+  %l10_gas4.lcssa = phi i64 [ %l10_gas4, %l10_gasok ], [ %l10_gas4.1, %l10_gasok.1 ]
+  store i64 52, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l12_gasok:                                        ; preds = %l10_gasok
+  %l12_gas4 = add i64 %stack_gasleft_ptr.134, -13
+  %l12_res0 = or i256 %stack_alloc.sroa.12.033, 1
+  %l15_gas2 = icmp ult i64 %l12_gas4, 16
+  br i1 %l15_gas2, label %l15_gaserr, label %l15_gasok
+
+l15_gaserr:                                       ; preds = %l12_gasok.1, %l12_gasok
+  %l12_gas4.lcssa = phi i64 [ %l12_gas4, %l12_gasok ], [ %l12_gas4.1, %l12_gasok.1 ]
+  store i64 56, i64* %pc_ptr, align 4
+  br label %common.ret
+
+l15_gasok:                                        ; preds = %l12_gasok
+  %l15_gas4 = add i64 %stack_gasleft_ptr.134, -29
+  store i64 56, i64* %pc_ptr, align 4
+  %l10_gas2 = icmp ult i64 %l15_gas4, 4
+  br i1 %l10_gas2, label %l10_gaserr, label %l10_gasok.1
+
+l10_gasok.1:                                      ; preds = %l15_gasok
+  %l10_gas4.1 = add i64 %stack_gasleft_ptr.134, -33
+  %l12_gas2.1 = icmp ult i64 %l10_gas4.1, 9
+  br i1 %l12_gas2.1, label %l12_gaserr, label %l12_gasok.1
+
+l12_gasok.1:                                      ; preds = %l10_gasok.1
+  %l12_gas4.1 = add i64 %stack_gasleft_ptr.134, -42
+  %l12_res0.1 = add nuw nsw i256 %stack_alloc.sroa.12.033, 2
+  %l15_gas2.1 = icmp ult i64 %l12_gas4.1, 16
+  br i1 %l15_gas2.1, label %l15_gaserr, label %l15_gasok.1
+
+l15_gasok.1:                                      ; preds = %l12_gasok.1
+  %l15_gas4.1 = add i64 %stack_gasleft_ptr.134, -58
+  %l15_cmp.1 = icmp ult i256 %l12_res0, 49
+  br i1 %l15_cmp.1, label %l17_jump.1, label %l17_skip
+
+l17_jump.1:                                       ; preds = %l15_gasok.1
+  store i64 56, i64* %pc_ptr, align 4
+  %l10_gas2.1 = icmp ult i64 %l15_gas4.1, 4
+  br i1 %l10_gas2.1, label %l10_gaserr, label %l10_gasok
+
+l17_skip:                                         ; preds = %l15_gasok.1
+  store i64 57, i64* %pc_ptr, align 4
+  %out_1 = load i64, i64* %heap_stack_position_ptr, align 8
+  %out_2 = getelementptr inbounds i8, i8* %heap_stack_addr, i64 %out_1
+  %out_stack_check2 = icmp ugt i64 %out_1, 8096
+  br i1 %out_stack_check2, label %common.ret, label %out_ok2
+
+common.ret:                                       ; preds = %l0_gaserr, %l1_gaserr, %l2_gaserr, %l4_gaserr, %l5_gaserr, %l6_gaserr, %l10_gaserr, %l12_gaserr, %l15_gaserr, %l17_skip, %out_ok2
+  %storemerge = phi i64 [ %0, %out_ok2 ], [ %gasleft_val, %l0_gaserr ], [ %l0_gas4, %l1_gaserr ], [ %l1_gas4, %l2_gaserr ], [ %l2_gas4, %l4_gaserr ], [ %l4_gas4, %l5_gaserr ], [ %l5_gas4, %l6_gaserr ], [ %stack_gasleft_ptr.1.lcssa, %l10_gaserr ], [ %l10_gas4.lcssa, %l12_gaserr ], [ %l12_gas4.lcssa, %l15_gaserr ], [ %0, %l17_skip ]
+  %common.ret.op = phi i32 [ 0, %out_ok2 ], [ -13, %l0_gaserr ], [ -13, %l1_gaserr ], [ -13, %l2_gaserr ], [ -13, %l4_gaserr ], [ -13, %l5_gaserr ], [ -13, %l6_gaserr ], [ -13, %l10_gaserr ], [ -13, %l12_gaserr ], [ -13, %l15_gaserr ], [ -11, %l17_skip ]
+  store i64 %storemerge, i64* %gasleft_ptr, align 4
+  ret i32 %common.ret.op
+
+out_ok2:                                          ; preds = %l17_skip
+  %out_l0_dst_ptr_lo = bitcast i8* %out_2 to i128*
+  %out_l0_dst_ptr_hi = getelementptr i8, i8* %out_2, i64 16
+  %1 = bitcast i8* %out_l0_dst_ptr_hi to i128*
+  store i128 0, i128* %out_l0_dst_ptr_lo, align 4
+  store i128 7975367974709495237422842361682067456, i128* %1, align 4
+  %out_l1_dst_ptr = getelementptr i8, i8* %out_2, i64 32
+  %out_l1_dst_ptr_lo = bitcast i8* %out_l1_dst_ptr to i128*
+  %out_l1_dst_ptr_hi = getelementptr i8, i8* %out_l1_dst_ptr, i64 16
+  %2 = bitcast i8* %out_l1_dst_ptr_hi to i128*
+  store i128 0, i128* %out_l1_dst_ptr_lo, align 4
+  store i128 5316911983139663491615228241121378304, i128* %2, align 4
+  %out_l2_dst_ptr = getelementptr i8, i8* %out_2, i64 64
+  %out_l2_dst_ptr_lo = bitcast i8* %out_l2_dst_ptr to i128*
+  %out_l2_dst_ptr_hi = getelementptr i8, i8* %out_l2_dst_ptr, i64 16
+  %3 = bitcast i8* %out_l2_dst_ptr_hi to i128*
+  store i128 825412239658, i128* %out_l2_dst_ptr_lo, align 4
+  store i128 -100643650203418942675923124248039888876, i128* %3, align 4
+  %out_6 = add nuw nsw i64 %out_1, 96
+  store i64 %out_6, i64* %heap_stack_position_ptr, align 8
+  br label %common.ret
+}
+
+attributes #0 = { nofree nosync nounwind }

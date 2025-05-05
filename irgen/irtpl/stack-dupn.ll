@@ -9,7 +9,7 @@
 {{- if gt .LoadIndex 0 }}
 %l{{ .Id }}_1 = load i64, i64* %stack_position_ptr, align 8
 {{- if .StackCheck }}
-%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ mul .LoadIndex 32 }}
+%l{{ .Id }}_underflow_check = icmp ult i64 %l{{ .Id }}_1, {{ .LoadIndex }}
 br i1 %l{{ .Id }}_underflow_check, label %l{{ .Id }}_err_underflow, label %l{{ .Id }}_ok
 l{{ .Id }}_err_underflow:
   store i64 {{ .Pc }}, i64* %pc_ptr
@@ -17,9 +17,8 @@ l{{ .Id }}_err_underflow:
   br label %error_return
 l{{ .Id }}_ok:
 {{- end }}
-%l{{ .Id }}_2 = getelementptr inbounds i8, i8* %stack_addr, i64 %l{{ .Id }}_1
-%l{{ .Id }}_3 = getelementptr inbounds i8, i8* %l{{ .Id }}_2, i64 -{{ mul .LoadIndex 32 }}
-%l{{ .Id }}_4 = bitcast i8* %l{{ .Id }}_3 to i256*
-%l{{ .Id }}_res0 = load i256, i256* %l{{ .Id }}_4, align 1
+%l{{ .Id }}_2 = getelementptr inbounds i256, i256* %stack_addr, i64 %l{{ .Id }}_1
+%l{{ .Id }}_3 = getelementptr inbounds i256, i256* %l{{ .Id }}_2, i64 -{{ .LoadIndex }}
+%l{{ .Id }}_res0 = load i256, i256* %l{{ .Id }}_3, align 1
 {{- end }}
 {{ end }}

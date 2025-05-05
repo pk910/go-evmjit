@@ -26,19 +26,13 @@ type IRFunction struct {
 }
 
 type IRBranch struct {
-	pc             uint32
-	opcodes        []*IROpcode
-	stackPos       int
-	heapPos        int
-	stackMax       int
-	stackMin       int
-	stackRefs      map[int]*IRStackRef
-	overflowChecks []IROverflowCheck
-}
-
-type IROverflowCheck struct {
-	min int
-	pc  uint32
+	pc        uint32
+	opcodes   []*IROpcode
+	stackPos  int
+	heapPos   int
+	stackMax  int
+	stackMin  int
+	stackRefs map[int]*IRStackRef
 }
 
 type IRStackRef struct {
@@ -57,6 +51,7 @@ type IROpcode struct {
 	stackStore    map[string]interface{}
 	skipGasCheck  bool
 	breakGasGroup bool
+	stackCheck    int
 }
 
 // NewIRFunction creates a new IRFunction.
@@ -125,7 +120,7 @@ br_%d:
 				}
 				lastId := fmt.Sprintf("%v", opcode.id)
 
-				if !opcode.breakGasGroup {
+				if !opcode.breakGasGroup && (!irf.stackcheck || opcode.stackCheck == 0) {
 					for _, followup := range branch.opcodes[idx+1:] {
 						if followup.gas > 0 && !followup.skipGasCheck && len(followup.stackLoad) == 0 {
 							totalGas += followup.gas
@@ -138,7 +133,7 @@ br_%d:
 							followup.skipGasCheck = true
 							lastId = fmt.Sprintf("%v", followup.id)
 
-							if followup.breakGasGroup {
+							if followup.breakGasGroup || (irf.stackcheck && followup.stackCheck > 0) {
 								break
 							}
 						} else {
@@ -163,6 +158,15 @@ br_%d:
 					"Count":      uint64(len(opcode.stackLoad)),
 					"StackCheck": irf.stackcheck,
 					"Verbose":    irf.verbose,
+				})
+			}
+			if opcode.stackCheck > 0 && irf.stackcheck {
+				ophelper.ExecuteTemplate(&opscode, "stack-check", map[string]interface{}{
+					"Id":       opcode.id,
+					"Pc":       opcode.pc,
+					"Count":    uint64(opcode.stackCheck),
+					"MaxStack": uint64(irf.maxstack),
+					"Verbose":  irf.verbose,
 				})
 			}
 			if len(opcode.stackStore) > 0 {
@@ -196,8 +200,8 @@ func (irf *IRFunction) String() string {
 
 define i32 @%s(%%struct.evm_callctx* noundef %%callctx) {
 entry:
-%%stack_alloc = alloca [%d x i8], align 32
-%%stack_addr = getelementptr inbounds [%d x i8], [%d x i8]* %%stack_alloc, i64 0, i64 0
+%%stack_alloc = alloca [%d x i256], align 32
+%%stack_addr = getelementptr inbounds [%d x i256], [%d x i256]* %%stack_alloc, i64 0, i64 0
 %%stack_position_ptr = alloca i64, align 4
 %%stack_gasleft_ptr = alloca i64, align 4
 %%exitcode_ptr = alloca i32, align 4
@@ -209,7 +213,7 @@ store i64 0, i64* %%stack_position_ptr
 %%gasleft_val = load i64, i64* %%gasleft_ptr, align 4
 store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 
-`, irf.name, irf.maxstack*32, irf.maxstack*32, irf.maxstack*32))
+`, irf.name, irf.maxstack, irf.maxstack, irf.maxstack))
 
 	if irf.heapstack > 0 {
 		fncode.WriteString(fmt.Sprintf(`
@@ -369,10 +373,7 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOu
 		branch.stackPos += stackOut
 
 		if branch.stackPos > branch.stackMax {
-			branch.overflowChecks = append(branch.overflowChecks, IROverflowCheck{
-				min: branch.stackPos,
-				pc:  opcode.pc,
-			})
+			opcode.stackCheck = branch.stackPos
 			branch.stackMax = branch.stackPos
 		}
 	}
