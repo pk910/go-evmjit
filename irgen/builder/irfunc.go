@@ -137,8 +137,6 @@ br_%d:
 
 			// batch opcode checks
 			if !opcode.skipGasCheck {
-				fmt.Println("opcode", opcode.name, "pc", opcode.pc, "gas", opcode.gas, "stackIn", len(opcode.stackLoad), "stackOut", opcode.stackCheck)
-
 				// collect all followup static gas checks
 				totalGas := int32(opcode.gas)
 				totalStackIn := int32(len(opcode.stackLoad))
@@ -461,7 +459,6 @@ func (irf *IRFunction) AppendDupN(n uint8) error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
-	fmt.Println("dupn stackPos", branch.stackPos, "heapPos", branch.heapPos)
 	if branch.stackPos-int(n+1) < branch.heapPos {
 		// need to load
 		stackPos := branch.heapPos - (branch.stackPos - int(n+1))
