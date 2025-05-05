@@ -95,7 +95,7 @@ func (c *CallCtx) GetUserValue() interface{} {
 }
 
 //export RunBinding
-func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_len C.uint16_t, output_ptr *C.uint8_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
+func RunBinding(c *C.evm_callctx, opcode uint8, stack_ptr *C.uint8_t, inputs_len C.uint16_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
 	callctx := cgo.Handle(c.goptr).Value().(*CallCtx)
 
 	var binding types.OpBindingFn
@@ -124,13 +124,13 @@ func RunBinding(c *C.evm_callctx, opcode uint8, inputs_ptr *C.uint8_t, inputs_le
 	var inputs []uint256.Int
 	if inputs_len > 0 {
 		words := int(inputs_len) / 32
-		inputs = (*[1 << 27]uint256.Int)(unsafe.Pointer(inputs_ptr))[:words:words]
+		inputs = (*[1 << 27]uint256.Int)(unsafe.Pointer(stack_ptr))[:words:words]
 	}
 
 	var output []uint256.Int
 	if output_len > 0 {
 		words := int(output_len) / 32
-		output = (*[1 << 27]uint256.Int)(unsafe.Pointer(output_ptr))[:words:words]
+		output = (*[1 << 27]uint256.Int)(unsafe.Pointer(stack_ptr))[:words:words]
 	}
 
 	return C.int32_t(binding(callctx, opcode, inputs, output, (*uint64)(unsafe.Pointer(gasleft))))

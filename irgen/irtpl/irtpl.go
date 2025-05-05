@@ -34,12 +34,21 @@ var templateFuncs = template.FuncMap{
 	"add": func(a, b uint64) uint64 { return a + b },
 	"sub": func(a, b uint64) uint64 { return a - b },
 	"mul": func(a, b uint64) uint64 { return a * b },
+	"max": func(a, b uint64) uint64 {
+		if a > b {
+			return a
+		}
+		return b
+	},
 	"loop": func(count uint64) []uint64 {
 		var items []uint64
 		for i := uint64(0); i < count; i++ {
 			items = append(items, i)
 		}
 		return items
+	},
+	"arrstr": func(arr []string, index uint64) string {
+		return arr[index]
 	},
 }
 

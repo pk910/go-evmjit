@@ -40,6 +40,14 @@ type IRStackRef struct {
 	refVar string
 }
 
+type IROpcodeCheck struct {
+	Id       uint32
+	Pc       uint64
+	MinStack uint64
+	MaxStack uint64
+	MinGas   uint64
+}
+
 type IROpcode struct {
 	name          string
 	id            uint32
@@ -107,50 +115,91 @@ br_%d:
 
 			opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
 			opcode.tpl.ExecuteTemplate(&opscode, "irhead", model)
-			if opcode.gas > 0 && !opcode.skipGasCheck {
+
+			opChecks := []*IROpcodeCheck{}
+			getOpCheck := func(pc uint32) *IROpcodeCheck {
+				for _, check := range opChecks {
+					if check.Pc == uint64(pc) {
+						return check
+					}
+				}
+
+				check := &IROpcodeCheck{
+					Id:       pc,
+					Pc:       uint64(pc),
+					MinStack: 0,
+					MaxStack: 0,
+					MinGas:   0,
+				}
+				opChecks = append(opChecks, check)
+				return check
+			}
+
+			// batch opcode checks
+			if !opcode.skipGasCheck {
+				fmt.Println("opcode", opcode.name, "pc", opcode.pc, "gas", opcode.gas, "stackIn", len(opcode.stackLoad), "stackOut", opcode.stackCheck)
+
 				// collect all followup static gas checks
 				totalGas := int32(opcode.gas)
-				diffPcs := []map[string]interface{}{
-					{
-						"Id":   opcode.id,
-						"Pc":   opcode.pc,
-						"Gas":  totalGas,
-						"Last": "",
-					},
-				}
-				lastId := fmt.Sprintf("%v", opcode.id)
+				totalStackIn := int32(len(opcode.stackLoad))
+				totalStackOut := int32(opcode.stackCheck)
 
-				if !opcode.breakGasGroup && (!irf.stackcheck || opcode.stackCheck == 0) {
+				opCheck := getOpCheck(opcode.pc)
+				opCheck.MinGas = uint64(totalGas)
+				opCheck.MinStack = uint64(totalStackIn)
+				opCheck.MaxStack = uint64(totalStackOut)
+
+				if !opcode.breakGasGroup {
 					for _, followup := range branch.opcodes[idx+1:] {
-						if followup.gas > 0 && !followup.skipGasCheck && len(followup.stackLoad) == 0 {
+						if followup.gas > 0 && !followup.skipGasCheck {
 							totalGas += followup.gas
-							diffPcs = append(diffPcs, map[string]interface{}{
-								"Id":   followup.id,
-								"Pc":   followup.pc,
-								"Gas":  totalGas,
-								"Last": lastId,
-							})
+							totalStackIn += int32(len(followup.stackLoad))
+							if followup.stackCheck > 0 {
+								totalStackOut = int32(followup.stackCheck)
+							}
+							opCheck := getOpCheck(followup.pc)
+							opCheck.MinGas = uint64(totalGas)
+							if len(followup.stackLoad) > 0 {
+								opCheck.MinStack = uint64(totalStackIn)
+							}
+							opCheck.MaxStack = uint64(followup.stackCheck)
 							followup.skipGasCheck = true
-							lastId = fmt.Sprintf("%v", followup.id)
 
-							if followup.breakGasGroup || (irf.stackcheck && followup.stackCheck > 0) {
+							if followup.breakGasGroup {
+								fmt.Println("break gas group", followup.name, "gas", totalGas, "stack", totalStackIn, "pc", followup.pc)
 								break
 							}
 						} else {
+							fmt.Println("break gas group", followup.name, "gas", totalGas, "stack", totalStackIn, "pc", followup.pc)
 							break
 						}
 					}
 				}
 
-				ophelper.ExecuteTemplate(&opscode, "gas-check", map[string]interface{}{
-					"Id":      opcode.id,
-					"Pc":      opcode.pc,
-					"Gas":     totalGas,
-					"Pcs":     diffPcs,
-					"Last":    lastId,
-					"Verbose": irf.verbose,
-				})
+				filteredChecks := []*IROpcodeCheck{}
+				for _, check := range opChecks {
+					if check.MinStack > 0 || check.MaxStack > 0 || check.MinGas > 0 {
+						filteredChecks = append(filteredChecks, check)
+					}
+				}
+
+				if len(filteredChecks) > 0 {
+					err := ophelper.ExecuteTemplate(&opscode, "op-checks", map[string]interface{}{
+						"Id":        opcode.id,
+						"Pc":        opcode.pc,
+						"Gas":       uint64(totalGas),
+						"MinStack":  uint64(totalStackIn),
+						"MaxStack":  uint64(totalStackOut),
+						"StackSize": uint64(irf.maxstack),
+						"Checks":    filteredChecks,
+						"Verbose":   irf.verbose,
+					})
+					if err != nil {
+						fmt.Println("error executing op-checks", err)
+					}
+				}
 			}
+
 			if len(opcode.stackLoad) > 0 {
 				ophelper.ExecuteTemplate(&opscode, "stack-load", map[string]interface{}{
 					"Id":         opcode.id,
@@ -158,15 +207,6 @@ br_%d:
 					"Count":      uint64(len(opcode.stackLoad)),
 					"StackCheck": irf.stackcheck,
 					"Verbose":    irf.verbose,
-				})
-			}
-			if opcode.stackCheck > 0 && irf.stackcheck {
-				ophelper.ExecuteTemplate(&opscode, "stack-check", map[string]interface{}{
-					"Id":       opcode.id,
-					"Pc":       opcode.pc,
-					"Count":    uint64(opcode.stackCheck),
-					"MaxStack": uint64(irf.maxstack),
-					"Verbose":  irf.verbose,
 				})
 			}
 			if len(opcode.stackStore) > 0 {
@@ -339,27 +379,28 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOu
 
 	if stackIn > 0 {
 		index := 0
-		needStackCheck := false
+		stackRefs := []string{}
 		for stackPos := branch.stackPos - 1; stackPos >= branch.stackPos-stackIn; stackPos-- {
 			stackRef := branch.stackRefs[stackPos]
 			if stackRef != nil {
 				delete(branch.stackRefs, stackPos)
 				model[fmt.Sprintf("StackRef%d", index)] = stackRef.refVar
+				stackRefs = append(stackRefs, stackRef.refVar)
 			} else {
 				refVar := fmt.Sprintf("%%l%v_input%d", opcode.id, len(opcode.stackLoad))
 				opcode.stackLoad = append(opcode.stackLoad, refVar)
 				model[fmt.Sprintf("StackRef%d", index)] = refVar
+				stackRefs = append(stackRefs, refVar)
 				branch.heapPos--
 
 				if branch.heapPos < branch.stackMin {
-					needStackCheck = true
 					branch.stackMin = branch.heapPos
 				}
 			}
 			index++
 		}
 		branch.stackPos -= stackIn
-		model["StackCheck"] = needStackCheck
+		model["StackRefs"] = stackRefs
 	}
 	if stackOut > 0 {
 		index := 0
@@ -478,7 +519,7 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 }
 
 func (irf *IRFunction) AppendPop() error {
-	return irf.appendOpcode("stack-pop.ll", 1, 0, 1, 2, nil)
+	return irf.appendOpcode("stack-pop.ll", 1, 1, 0, 2, nil)
 }
 
 func (irf *IRFunction) AppendAdd() error {

@@ -6,7 +6,7 @@
 
 struct evm_callctx;
 typedef struct evm_callctx evm_callctx;
-typedef int (*opcode_func_ptr)(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, unsigned char *outputs, uint16_t outputs_len, uint64_t *gasleft);
+typedef int (*opcode_func_ptr)(evm_callctx *callctx, unsigned char opcode, unsigned char *inputs, uint16_t inputs_len, uint16_t outputs_len, uint64_t *gasleft);
 
 struct evm_callctx {
     evm_stack *stack;

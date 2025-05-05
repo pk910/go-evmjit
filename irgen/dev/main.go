@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -14,31 +13,42 @@ import (
 
 func main() {
 	irf := builder.NewIRFunction("test", 1023, true)
-	hexdec := func(str string) []byte {
-		out, _ := hex.DecodeString(str)
-		return out
-	}
+	/*
+		hexdec := func(str string) []byte {
+			out, _ := hex.DecodeString(str)
+			return out
+		}
 
+		irf.AppendPushN(1, []uint8{2})
+		irf.AppendPushN(1, []uint8{4})
+		irf.AppendJumpDest()
+		irf.AppendPushN(32, hexdec("a9059cbb00000000000000000000000051a271009841ef452116efbbbef122d0"))
+		irf.AppendPushN(1, []uint8{6})
+		irf.AppendPushN(1, []uint8{0xff})
+		irf.AppendAnd()
+		irf.AppendSwapN(3)
+		irf.AppendShr()
+		irf.AppendDupN(2)
+	*/
+
+	irf.AppendPushN(2, []uint8{0xee, 0xaa})
 	irf.AppendPushN(1, []uint8{2})
-	irf.AppendPushN(1, []uint8{4})
 	irf.AppendJumpDest()
-	irf.AppendPushN(32, hexdec("a9059cbb00000000000000000000000051a271009841ef452116efbbbef122d0"))
-	irf.AppendPushN(1, []uint8{6})
-	irf.AppendPushN(1, []uint8{0xff})
-	irf.AppendAnd()
-	irf.AppendSwapN(3)
-	irf.AppendShr()
-	irf.AppendDupN(2)
-
-	irf.AppendJumpDest()
+	irf.AppendDupN(1)
+	irf.AppendPop()
 	irf.AppendPushN(1, []uint8{1})
 	irf.AppendAdd()
 	irf.AppendPushN(1, []uint8{50})
 	irf.AppendDupN(2)
 	irf.AppendLt()
-	irf.AppendPushN(1, []uint8{46})
+	irf.AppendPushN(1, []uint8{5})
 	irf.AppendJumpI()
-	irf.AppendStop()
+
+	//irf.AppendPushN(1, []uint8{2})
+	irf.AppendPushN(1, []uint8{80})
+	irf.AppendHighOpcode(0x0A, 3, 1, 5, false)
+
+	//irf.AppendStop()
 
 	/*
 		irf.AppendPushN(32, []uint8{0x21, 0x14, 0x16, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x04, 0x05, 0x02, 0x01})
@@ -71,7 +81,7 @@ func main() {
 	*/
 
 	//irf.AppendStop()
-	irf.SetStackInputOutputs(0, 3, 256)
+	irf.SetStackInputOutputs(0, 1, 256)
 
 	irb := builder.NewIRBuilder()
 	irb.AddFunction(irf)
