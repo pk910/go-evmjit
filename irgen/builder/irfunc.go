@@ -56,6 +56,7 @@ type IROpcode struct {
 	tpl           *template.Template
 	model         map[string]interface{}
 	stackLoad     []string
+	stackAddLoad  int
 	stackStore    map[string]interface{}
 	skipGasCheck  bool
 	breakGasGroup bool
@@ -139,13 +140,22 @@ br_%d:
 			if !opcode.skipGasCheck {
 				// collect all followup static gas checks
 				totalGas := int32(opcode.gas)
+				checkedStackIn := int32(0)
 				totalStackIn := int32(len(opcode.stackLoad))
 				totalStackOut := int32(opcode.stackCheck)
 
 				opCheck := getOpCheck(opcode.pc)
 				opCheck.MinGas = uint64(totalGas)
-				opCheck.MinStack = uint64(totalStackIn)
 				opCheck.MaxStack = uint64(totalStackOut)
+
+				checkStackIn := totalStackIn
+				if opcode.stackAddLoad > 0 {
+					checkStackIn = totalStackIn + int32(opcode.stackAddLoad)
+				}
+				if checkStackIn > checkedStackIn {
+					opCheck.MinStack = uint64(checkStackIn)
+					checkedStackIn = checkStackIn
+				}
 
 				if !opcode.breakGasGroup {
 					for _, followup := range branch.opcodes[idx+1:] {
@@ -157,10 +167,17 @@ br_%d:
 							}
 							opCheck := getOpCheck(followup.pc)
 							opCheck.MinGas = uint64(totalGas)
-							if len(followup.stackLoad) > 0 {
-								opCheck.MinStack = uint64(totalStackIn)
-							}
 							opCheck.MaxStack = uint64(followup.stackCheck)
+
+							checkStackIn := totalStackIn
+							if followup.stackAddLoad > 0 {
+								checkStackIn = totalStackIn + int32(followup.stackAddLoad)
+							}
+							if checkStackIn > checkedStackIn {
+								opCheck.MinStack = uint64(checkStackIn)
+								checkedStackIn = checkStackIn
+							}
+
 							followup.skipGasCheck = true
 
 							if followup.breakGasGroup {
@@ -184,7 +201,7 @@ br_%d:
 						"Id":        opcode.id,
 						"Pc":        opcode.pc,
 						"Gas":       uint64(totalGas),
-						"MinStack":  uint64(totalStackIn),
+						"MinStack":  uint64(checkedStackIn),
 						"MaxStack":  uint64(totalStackOut),
 						"StackSize": uint64(irf.maxstack),
 						"Checks":    filteredChecks,
@@ -457,15 +474,12 @@ func (irf *IRFunction) AppendDupN(n uint8) error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
-	if branch.stackPos-int(n+1) < branch.heapPos {
+	localStack := (0 - branch.heapPos) + branch.stackPos
+	if int(n+1) > localStack {
 		// need to load
-		stackPos := branch.heapPos - (branch.stackPos - int(n+1))
+		stackPos := int(n+1) - localStack
 		opcode.model["LoadIndex"] = uint64(stackPos)
-
-		if branch.stackMin > branch.heapPos-stackPos {
-			branch.stackMin = branch.heapPos - stackPos
-			opcode.model["StackCheck"] = true
-		}
+		opcode.stackAddLoad = stackPos
 	} else {
 		sourceStackRef := branch.stackRefs[branch.stackPos-int(n+1)]
 		if sourceStackRef == nil {
@@ -491,15 +505,13 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
-	if branch.stackPos-int(n+1) <= branch.heapPos {
+	localStack := (0 - branch.heapPos) + branch.stackPos
+	fmt.Println("swap", n, "localStack", localStack, "heapPos", branch.heapPos, "branch.stackPos", branch.stackPos)
+	if int(n+1) > localStack {
 		// need to load
-		stackPos := branch.heapPos - (branch.stackPos - int(n+1))
-		opcode.model["SwapIndex"] = uint64(stackPos + 1)
-
-		if branch.stackMin > branch.heapPos-stackPos {
-			branch.stackMin = branch.heapPos - stackPos
-			opcode.model["StackCheck"] = true
-		}
+		stackPos := int(n+1) - localStack
+		opcode.model["SwapIndex"] = uint64(stackPos)
+		opcode.stackAddLoad = stackPos
 	} else {
 		targetStackRef.refVar = opcode.model["StackRef0"].(string)
 		sourceStackRef := branch.stackRefs[branch.stackPos-1-int(n+1)]
