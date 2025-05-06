@@ -70,10 +70,46 @@ var optimizeCmd = &cobra.Command{
 	},
 }
 
+var runCmd = &cobra.Command{
+	Use:   "run",
+	Short: "Run LLVM IR",
+	Long:  `Reads LLVM IR from stdin, runs it, and outputs the result to stdout.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		irBytes, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("Failed to read IR from stdin: %v", err)
+		}
+		irString := string(irBytes)
+
+		moduleRef := llvm.NewModule()
+		moduleRef.LoadIR(irString)
+
+		err = moduleRef.InitEngine()
+		if err != nil {
+			log.Fatalf("Failed to initialize engine: %v", err)
+		}
+
+		callctx, err := llvm.NewCallCtx(nil, 0, 10000, nil)
+		if err != nil {
+			log.Fatalf("Error creating call context: %v", err)
+		}
+
+		defer callctx.Dispose()
+
+		result, err := moduleRef.Call(callctx, "main")
+		if err != nil {
+			log.Fatalf("Failed to call function: %v", err)
+		}
+
+		fmt.Printf("Result: %v\n", result)
+	},
+}
+
 func init() {
 	buildCmd.Flags().StringP("input", "i", "", "Hex string of the EVM bytecode")
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(optimizeCmd)
+	rootCmd.AddCommand(runCmd)
 }
 
 func main() {

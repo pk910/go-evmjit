@@ -7,6 +7,7 @@ package llvm
 #include <stdlib.h>
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/BitReader.h>
+#include <llvm-c/Analysis.h>
 #include "module.h"
 
 */
@@ -65,6 +66,13 @@ func (m *Module) LoadIR(ir string) error {
 	SetupTargetMachine(m.mod, nativeTriple, nativeTarget)
 
 	C.optimizeModule(m.mod)
+
+	if C.LLVMVerifyModule(m.mod, C.LLVMPrintMessageAction, &errorMsg) != 0 {
+		errorObj = fmt.Errorf("LLVM verification error: %s", C.GoString(errorMsg))
+		C.LLVMDisposeMessage(errorMsg)
+		return errorObj
+	}
+
 	return nil
 }
 
@@ -91,6 +99,10 @@ func (m *Module) InitEngine() error {
 }
 
 func (m *Module) getFnAddr(name string) (C.jit_func_ptr, error) {
+	if m.engine == nil {
+		return nil, errors.New("engine not initialized")
+	}
+
 	funcName := C.CString(name)
 	defer C.free(unsafe.Pointer(funcName))
 

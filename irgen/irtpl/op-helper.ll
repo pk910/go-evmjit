@@ -27,14 +27,14 @@ store i64 %l{{ .Id }}_stack_out_val2, i64* %stack_position_ptr, align 8
 
 {{- define "op-checks" }}
 {{ if .Verbose }}; op checks {{ .Id }} (total gas: {{ .Gas }}, stack-in: {{ .MinStack }}, stack-out: {{ .MaxStack }}){{- end }}
+{{- if gt (add .MinStack .MaxStack) 0 }}
+%l{{ .Id }}_stack_val = load i64, i64* %stack_position_ptr, align 8
+{{- end }}
 {{- if gt .Gas 0 }}
 %l{{ .Id }}_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
 %l{{ .Id }}_gas2 = icmp ult i64 %l{{ .Id }}_gas1, {{ .Gas }}
 br i1 %l{{ .Id }}_gas2, label %l{{ .Id }}_checkerr, label %l{{ .Id }}_gasok
 l{{ .Id }}_gasok:
-{{- end }}
-{{- if gt (add .MinStack .MaxStack) 0 }}
-%l{{ .Id }}_stack_val = load i64, i64* %stack_position_ptr, align 8
 {{- end }}
 {{- if gt .MinStack 0 }}
 %l{{ .Id }}_stack_in_check = icmp ult i64 %l{{ .Id }}_stack_val, {{ .MinStack }}
