@@ -18,9 +18,10 @@
 
 {{- /* input handling */}}
 {{- if gt .Inputs 0 }}
+{{- $maxinput := sub .Inputs 1 }}
 {{- range $input := loop .Inputs }}
 %l{{ $id }}_in_ptr{{ $input }} = getelementptr inbounds i256, i256* %l{{ $id }}_alloc_ptr, i64 {{ $input }}
-store i256 {{ arrstr $stack_refs $input }}, i256* %l{{ $id }}_in_ptr{{ $input }}
+store i256 {{ arrstr $stack_refs (sub $maxinput $input) }}, i256* %l{{ $id }}_in_ptr{{ $input }}
 {{- end }}
 {{- end }}
 
@@ -49,9 +50,10 @@ l{{ $id }}_callback_ok:
 
 {{- /* output handling */}}
 {{- if gt .Outputs 0 }}
+{{- $maxoutput := sub .Outputs 1 }}
 {{- range $output := loop .Outputs }}
 %l{{ $id }}_out_ptr{{ $output }} = getelementptr inbounds i256, i256* %l{{ $id }}_alloc_ptr, i64 {{ $output }}
-%l{{ $id }}_res{{ $output }} = load i256, i256* %l{{ $id }}_out_ptr{{ $output }}, align 1
+%l{{ $id }}_res{{ sub $maxoutput $output }} = load i256, i256* %l{{ $id }}_out_ptr{{ $output }}, align 1
 {{- end }}
 {{- end }}
 {{ end }}
