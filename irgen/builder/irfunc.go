@@ -164,11 +164,9 @@ br_%d:
 							followup.skipGasCheck = true
 
 							if followup.breakGasGroup {
-								fmt.Println("break gas group", followup.name, "gas", totalGas, "stack", totalStackIn, "pc", followup.pc)
 								break
 							}
 						} else {
-							fmt.Println("break gas group", followup.name, "gas", totalGas, "stack", totalStackIn, "pc", followup.pc)
 							break
 						}
 					}
