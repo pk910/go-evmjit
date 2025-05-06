@@ -5,6 +5,7 @@ package llvm
 #cgo LDFLAGS: -L/usr/lib/llvm-14/lib -lLLVM
 
 #include <stdlib.h>
+#include <stdint.h>
 #include "stack.h"
 #include "callctx.h"
 
@@ -21,7 +22,7 @@ import (
 
 type CallCtx struct {
 	callctx      *C.evm_callctx
-	stack        *C.evm_stack
+	stack        unsafe.Pointer
 	handle       cgo.Handle
 	disposeStack bool
 	gaslimit     uint64
@@ -30,10 +31,10 @@ type CallCtx struct {
 	userValue    interface{}
 }
 
-func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (types.CallCtx, error) {
+func NewCallCtx(stack unsafe.Pointer, sp uint64, gaslimit uint64, userValue interface{}) (types.CallCtx, error) {
 	disposeStack := false
 	if stack == nil {
-		stack = C.stack_init(C.uint16_t(1023))
+		stack = C.malloc(C.uint64_t(1023 * 32))
 		if stack == nil {
 			return nil, errors.New("failed to initialize stack")
 		}
@@ -50,7 +51,7 @@ func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (typ
 
 	callctx.handle = cgo.NewHandle(callctx)
 
-	callctx.callctx = C.callctx_init(C.uintptr_t(callctx.handle), stack, C.int(gaslimit))
+	callctx.callctx = C.callctx_init((*C.uint8_t)(stack), C.uint64_t(sp), C.uint64_t(gaslimit), C.uintptr_t(callctx.handle))
 	if callctx.callctx == nil {
 		return nil, errors.New("failed to initialize callctx")
 	}
@@ -60,7 +61,7 @@ func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (typ
 
 func (c *CallCtx) Dispose() {
 	if c.disposeStack {
-		C.stack_free(c.stack)
+		C.free(c.stack)
 	}
 	cgo.Handle(c.handle).Delete()
 	C.callctx_free(c.callctx)
@@ -83,11 +84,11 @@ func (c *CallCtx) GetGas() uint64 {
 }
 
 func (c *CallCtx) PrintStack(n int) {
-	C.stack_print_item(c.stack, C.int(n))
+	C.callctx_print_stack_item(c.callctx, C.int(n))
 }
 
 func (c *CallCtx) GetStackSize() int {
-	return int(C.stack_get_size(c.stack))
+	return int(C.callctx_get_sp(c.callctx))
 }
 
 func (c *CallCtx) GetUserValue() interface{} {

@@ -145,7 +145,7 @@ func main() {
 	os.WriteFile("./contract1-test.ll", []byte(llvmIR), 0644)
 	//fmt.Println(llvmIR)
 
-	callctx, err := llvm.NewCallCtx(nil, 10000, nil)
+	callctx, err := llvm.NewCallCtx(nil, 0, 10000, nil)
 	if err != nil {
 		fmt.Println("Error creating call context:", err)
 		return

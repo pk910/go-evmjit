@@ -27,11 +27,8 @@ store i256 {{ arrstr $stack_refs (sub $maxinput $input) }}, i256* %l{{ $id }}_in
 
 {{- /* function call */}}
 store i64 {{ .Pc }}, i64* %pc_ptr
-%l{{ $id }}_fn_ptr_addr = getelementptr inbounds %struct.evm_callctx, %struct.evm_callctx* %callctx, i64 0, i32 3
-%l{{ $id }}_fn_ptr = load i32 (i8*, i8, i8*, i16, i16, i64*)*, i32 (i8*, i8, i8*, i16, i16, i64*)** %l{{ $id }}_fn_ptr_addr, align 8
-%l{{ $id }}_ctx_as_i8 = bitcast %struct.evm_callctx* %callctx to i8*
-%l{{ $id }}_ret = call i32 %l{{ $id }}_fn_ptr(
-    i8* %l{{ $id }}_ctx_as_i8,
+%l{{ $id }}_ret = call i32 %evmc_callback(
+    i8* %callctx_as_i8,
     i8 {{ .Opcode }},
     i8* {{ if gt $buffer_size 0 }}%l{{ $id }}_ptr{{ else }}null{{ end }},
     i16 {{ mul .Inputs 32 }},
