@@ -16,10 +16,6 @@ typedef struct evm_stack evm_stack;
 
 evm_stack *stack_init(uint16_t size);
 void stack_free(evm_stack *stack);
-int stack_push(evm_stack *stack, unsigned char *value);
-int stack_dupn(evm_stack *stack, int n);
-int stack_swapn(evm_stack *stack, int n);
-int stack_pop(evm_stack *stack);
 int stack_print_item(evm_stack *stack, int n);
 int stack_get_size(evm_stack *stack);
 

@@ -136,7 +136,7 @@ func main() {
 	*/
 
 	//irf.AppendStop()
-	irf.SetStackInputOutputs(0, 4, 256)
+	//irf.SetStackInputOutputs(0, 4, 256)
 
 	irb := builder.NewIRBuilder()
 	irb.AddFunction(irf)

@@ -21,43 +21,16 @@ void stack_free(evm_stack *stack) {
     free(stack);
 }
 
-int stack_push(evm_stack *stack, unsigned char value[STACK_WORD_SIZE]) {
-    memcpy(stack->stack + stack->position, value, STACK_WORD_SIZE);
-    stack->position += STACK_WORD_SIZE;
-    return 0;
-}
-
-int stack_dupn(evm_stack *stack, int n) {
-    memcpy(stack->stack + stack->position, stack->stack + stack->position - (n * STACK_WORD_SIZE), STACK_WORD_SIZE);
-    stack->position += STACK_WORD_SIZE;
-    return 0;
-}
-
-int stack_swapn(evm_stack *stack, int n) {
-    unsigned char *s_pos = stack->stack + stack->position - STACK_WORD_SIZE;
-    unsigned char *n_pos = s_pos - (n * STACK_WORD_SIZE);
-    unsigned char tmp[STACK_WORD_SIZE];
-    memcpy(tmp, s_pos, STACK_WORD_SIZE);
-    memcpy(s_pos, n_pos, STACK_WORD_SIZE);
-    memcpy(n_pos, tmp, STACK_WORD_SIZE);
-    return 0;
-}
-
-int stack_pop(evm_stack *stack) {
-    stack->position -= STACK_WORD_SIZE;
-    return 0;
-}
-
 int stack_print_item(evm_stack *stack, int n) {
-    unsigned char *item_ptr = stack->stack + stack->position - (n * STACK_WORD_SIZE);
-    printf("Stack[%d/%d]: 0x", n, stack->position/STACK_WORD_SIZE);
+    unsigned char *item_ptr = stack->stack + ((stack->position - n) * STACK_WORD_SIZE);
+    printf("Stack[%d/%d]: 0x", n, stack->position);
     for (int i = 0; i < STACK_WORD_SIZE; i++) {
-        printf("%02x", item_ptr[i]);
+        printf("%02x", item_ptr[31-i]);
     }
     printf("\n");
     return 0;
 }
 
 int stack_get_size(evm_stack *stack) {
-    return stack->position / STACK_WORD_SIZE;
+    return stack->position;
 }

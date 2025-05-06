@@ -33,7 +33,7 @@ type CallCtx struct {
 func NewCallCtx(stack *C.evm_stack, gaslimit uint64, userValue interface{}) (types.CallCtx, error) {
 	disposeStack := false
 	if stack == nil {
-		stack = C.stack_init(C.uint16_t(512))
+		stack = C.stack_init(C.uint16_t(1023))
 		if stack == nil {
 			return nil, errors.New("failed to initialize stack")
 		}

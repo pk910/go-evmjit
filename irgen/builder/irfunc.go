@@ -17,7 +17,6 @@ type IRFunction struct {
 	opcount     uint32
 	pccount     uint32
 	maxstack    uint16
-	heapstack   uint16
 	inputs      uint8
 	outputs     uint8
 	verbose     bool
@@ -71,7 +70,6 @@ func NewIRFunction(name string, stacksize uint16, verbose bool) *IRFunction {
 		branchCount: 0,
 		pccount:     0,
 		maxstack:    stacksize,
-		heapstack:   0,
 		inputs:      0,
 		outputs:     0,
 		verbose:     verbose,
@@ -82,7 +80,7 @@ func NewIRFunction(name string, stacksize uint16, verbose bool) *IRFunction {
 func (irf *IRFunction) SetStackInputOutputs(inputs, outputs uint8, stacksize uint16) {
 	irf.inputs = inputs
 	irf.outputs = outputs
-	irf.heapstack = stacksize
+	irf.maxstack = stacksize
 }
 
 func (irf *IRFunction) generateOpIRCode() (string, string) {
@@ -254,39 +252,43 @@ func (irf *IRFunction) String() string {
 
 define i32 @%s(%%struct.evm_callctx* noundef %%callctx) {
 entry:
-%%stack_alloc = alloca [%d x i256], align 32
-%%stack_addr = getelementptr inbounds [%d x i256], [%d x i256]* %%stack_alloc, i64 0, i64 0
-%%stack_position_ptr = alloca i64, align 4
-%%stack_gasleft_ptr = alloca i64, align 4
-%%exitcode_ptr = alloca i32, align 4
-store i64 0, i64* %%stack_position_ptr
-
 %%callctx_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 0
 %%pc_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 1
 %%gasleft_ptr = getelementptr inbounds %%struct.evm_callctx, %%struct.evm_callctx* %%callctx, i64 0, i32 2
-%%gasleft_val = load i64, i64* %%gasleft_ptr, align 4
-store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
-
-`, irf.name, irf.maxstack, irf.maxstack, irf.maxstack))
-
-	if irf.heapstack > 0 {
-		fncode.WriteString(fmt.Sprintf(`
 %%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
 %%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 0
 %%heap_stack_addr = load i8*, i8** %%heap_stack_ptr, align 8
-%%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 1
-`))
-	}
+%%stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 1
+%%stack_addr = bitcast i8* %%heap_stack_addr to i256*
 
-	// load inputs from heap stack to local stack
-	if irf.heapstack > 0 && irf.inputs > 0 {
-		tpl := irtpl.GetTemplate("stack-input.ll")
-		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
-			"Inputs":     uint64(irf.inputs),
-			"StackCheck": irf.stackcheck,
-			"MaxStack":   uint64(irf.maxstack),
-		})
-	}
+%%stack_gasleft_ptr = alloca i64, align 4
+%%exitcode_ptr = alloca i32, align 4
+
+%%gasleft_val = load i64, i64* %%gasleft_ptr, align 4
+store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
+`, irf.name))
+
+	/*
+			if irf.heapstack > 0 {
+				fncode.WriteString(fmt.Sprintf(`
+		%%heap_stack = load %%struct.evm_stack*, %%struct.evm_stack** %%callctx_ptr, align 8
+		%%heap_stack_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 0
+		%%heap_stack_addr = load i8*, i8** %%heap_stack_ptr, align 8
+		%%heap_stack_position_ptr = getelementptr %%struct.evm_stack, %%struct.evm_stack* %%heap_stack, i32 0, i32 1
+		`))
+			}
+
+			// load inputs from heap stack to local stack
+
+			if irf.heapstack > 0 && irf.inputs > 0 {
+				tpl := irtpl.GetTemplate("stack-input.ll")
+				tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+					"Inputs":     uint64(irf.inputs),
+					"StackCheck": irf.stackcheck,
+					"MaxStack":   uint64(irf.maxstack),
+				})
+			}
+	*/
 
 	// generate jumptable
 	tpl := irtpl.GetTemplate("flow-jumptable.ll")
@@ -313,14 +315,16 @@ graceful_return:
 `)
 
 	// load outputs from local stack to heap stack
-	if irf.heapstack > 0 && irf.outputs > 0 {
-		tpl := irtpl.GetTemplate("stack-output.ll")
-		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
-			"Outputs":    uint64(irf.outputs),
-			"StackCheck": irf.stackcheck,
-			"MaxStack":   uint64(irf.heapstack),
-		})
-	}
+	/*
+		if irf.heapstack > 0 && irf.outputs > 0 {
+			tpl := irtpl.GetTemplate("stack-output.ll")
+			tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+				"Outputs":    uint64(irf.outputs),
+				"StackCheck": irf.stackcheck,
+				"MaxStack":   uint64(irf.heapstack),
+			})
+		}
+	*/
 
 	fncode.WriteString(`
 %res_gas1 = load i64, i64* %stack_gasleft_ptr, align 8
