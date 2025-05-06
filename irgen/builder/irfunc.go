@@ -138,6 +138,7 @@ br_%d:
 
 			// batch opcode checks
 			if !opcode.skipGasCheck {
+				//fmt.Println("collect checks for opcode", opcode.name, "pc", opcode.pc, "gas", opcode.gas, "stackCheck", opcode.stackCheck)
 				// collect all followup static gas checks
 				totalGas := int32(opcode.gas)
 				checkedStackIn := int32(0)
@@ -157,7 +158,7 @@ br_%d:
 					checkedStackIn = checkStackIn
 				}
 
-				if !opcode.breakGasGroup {
+				if !opcode.breakGasGroup && opcode.gas > 0 {
 					for _, followup := range branch.opcodes[idx+1:] {
 						if followup.gas > 0 && !followup.skipGasCheck {
 							totalGas += followup.gas
@@ -518,7 +519,7 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 			return fmt.Errorf("source stack ref is nil")
 		}
 
-		branch.stackRefs[branch.stackPos-1], branch.stackRefs[branch.stackPos-1-int(n+1)] = sourceStackRef, targetStackRef
+		branch.stackRefs[branch.stackPos-1], branch.stackRefs[branch.stackPos-int(n+1)] = sourceStackRef, targetStackRef
 	}
 
 	return nil

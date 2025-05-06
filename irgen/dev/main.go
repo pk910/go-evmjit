@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -13,42 +14,96 @@ import (
 
 func main() {
 	irf := builder.NewIRFunction("test", 1023, true)
-	/*
-		hexdec := func(str string) []byte {
-			out, _ := hex.DecodeString(str)
-			return out
-		}
 
-		irf.AppendPushN(1, []uint8{2})
-		irf.AppendPushN(1, []uint8{4})
-		irf.AppendJumpDest()
-		irf.AppendPushN(32, hexdec("a9059cbb00000000000000000000000051a271009841ef452116efbbbef122d0"))
-		irf.AppendPushN(1, []uint8{6})
-		irf.AppendPushN(1, []uint8{0xff})
+	hexdec := func(str string) []byte {
+		out, _ := hex.DecodeString(str)
+		return out
+	}
+
+	irf.AppendPushN(1, []uint8{2})
+	irf.AppendPushN(1, []uint8{4})
+	irf.AppendJumpDest()
+	irf.AppendPushN(32, hexdec("a9059cbb00000000000000000000000051a271009841ef452116efbbbef122d0"))
+	irf.AppendPushN(1, []uint8{6})
+	irf.AppendPushN(1, []uint8{0xff})
+	irf.AppendSwapN(1)
+	/*
 		irf.AppendAnd()
 		irf.AppendSwapN(3)
 		irf.AppendShr()
 		irf.AppendDupN(2)
 	*/
 
-	irf.AppendPushN(2, []uint8{0xee, 0xaa})
-	irf.AppendPushN(1, []uint8{2})
-	irf.AppendJumpDest()
-	irf.AppendDupN(1)
-	irf.AppendPop()
-	irf.AppendPushN(1, []uint8{1})
-	irf.AppendAdd()
-	irf.AppendPushN(1, []uint8{50})
-	irf.AppendDupN(2)
-	irf.AppendLt()
-	irf.AppendPushN(1, []uint8{5})
-	irf.AppendJumpI()
+	/*
+		irf.AppendPushN(2, []uint8{0xee, 0xaa})
+		irf.AppendPushN(1, []uint8{2})
+		irf.AppendJumpDest()
+		irf.AppendDupN(1)
+		irf.AppendPop()
+		irf.AppendPushN(1, []uint8{1})
+		irf.AppendAdd()
+		irf.AppendPushN(1, []uint8{50})
+		irf.AppendDupN(2)
+		irf.AppendLt()
+		irf.AppendPushN(1, []uint8{5})
+		irf.AppendJumpI()
 
-	//irf.AppendPushN(1, []uint8{2})
-	irf.AppendPushN(1, []uint8{80})
-	irf.AppendHighOpcode(0x0A, 3, 1, 5, false)
+		//irf.AppendPushN(1, []uint8{2})
 
-	//irf.AppendStop()
+		irf.AppendJumpDest()                       // [y, x]
+		irf.AppendPushN(1, []uint8{0x40})          // [y, x, 0x40]
+		irf.AppendHighOpcode(0x48, 1, 1, 0, false) // [y, x, 0x48]
+		irf.AppendSwapN(1)                         // [y, 0x48, x]
+		irf.AppendIsZero()                         // [y, 0x48, x!=0]
+		irf.AppendIsZero()                         // [y, 0x48, x==0]
+		irf.AppendDupN(2)                          // [y, 0x48, x==0, 0x48]
+		irf.AppendHighOpcode(0x48, 2, 0, 0, false) // [y, 0x48]
+		irf.AppendPushN(1, []uint8{0x20})          // [y, 0x48, 0x20]
+		irf.AppendAdd()                            // [y, 0x68]
+		irf.AppendPushN(1, []uint8{0x40})          // [y, 0x68, 0x40]
+		irf.AppendHighOpcode(0x48, 1, 1, 0, false) // [y, 0x48]
+		irf.AppendDupN(1)                          // [y, 0x48, 0x48]
+		irf.AppendSwapN(2)                         // [0x48, 0x48, y]
+		//irf.AppendStop()
+	*/
+
+	/*
+		irf.AppendPushN(2, []uint8{0xee, 0xaa})
+		irf.AppendPushN(1, []uint8{3})
+		irf.AppendPushN(1, []uint8{2})
+		irf.AppendPushN(1, []uint8{1})
+
+		irf.AppendJumpDest() // [n3, n2, n1]
+		irf.AppendSwapN(2)   // [n1, n2, n3]
+		irf.AppendAdd()      // [n1, n2+n3]
+		irf.AppendDupN(1)    // [n1, n2+n3, n2+n3]
+		irf.AppendSwapN(3)
+	*/
+
+	/*
+		irf.AppendPushN(2, []uint8{0xee, 0xaa})
+		irf.AppendPushN(1, []uint8{4})
+		irf.AppendPushN(1, []uint8{3})
+		irf.AppendPushN(1, []uint8{2})
+		irf.AppendPushN(1, []uint8{1})
+
+		irf.AppendJumpDest()              // [n2, n1]
+		irf.AppendPushN(0, []uint8{})     // [n2, n1, 0]
+		irf.AppendDupN(3)                 // [n2, n1, 0, n2]
+		irf.AppendGt()                    // [n2, n1, n2>0]
+		irf.AppendIsZero()                // [n2, n1, n2>0==0]
+		irf.AppendPushN(1, []uint8{0x68}) // [n2, n1, n2>0==0, 0x68]
+		irf.AppendJumpI()                 // [n2, n1]
+		irf.AppendDupN(2)                 // [n2, n1, n2]
+		irf.AppendAdd()                   // [n2, n1+n2]
+		irf.AppendSwapN(1)                // [n1+n2, n2]
+		irf.AppendDupN(4)                 // [n1+n2, n2, n3]
+		irf.AppendMul()                   // [n1+n2, n2*n3]
+		irf.AppendDupN(5)                 // [n1+n2, n2, n3, n5]
+		irf.AppendDupN(4)                 // [n1+n2, n2, n3, n5, n1+n2]
+		irf.AppendMul()                   // [n1+n2, n2, n3, n5*(n1+n2)]
+		irf.AppendSwapN(1)                // [n1+n2, n2, n5*(n1+n2), n3]
+	*/
 
 	/*
 		irf.AppendPushN(32, []uint8{0x21, 0x14, 0x16, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x04, 0x05, 0x02, 0x01})
@@ -81,7 +136,7 @@ func main() {
 	*/
 
 	//irf.AppendStop()
-	irf.SetStackInputOutputs(0, 1, 256)
+	irf.SetStackInputOutputs(0, 4, 256)
 
 	irb := builder.NewIRBuilder()
 	irb.AddFunction(irf)
