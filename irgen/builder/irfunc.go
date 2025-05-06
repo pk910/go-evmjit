@@ -493,10 +493,10 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
-	if branch.stackPos-int(n+1) < branch.heapPos {
+	if branch.stackPos-int(n+1) <= branch.heapPos {
 		// need to load
 		stackPos := branch.heapPos - (branch.stackPos - int(n+1))
-		opcode.model["SwapIndex"] = uint64(stackPos)
+		opcode.model["SwapIndex"] = uint64(stackPos + 1)
 
 		if branch.stackMin > branch.heapPos-stackPos {
 			branch.stackMin = branch.heapPos - stackPos
