@@ -11,6 +11,7 @@ type Module interface {
 	Call(callctx CallCtx, name string) (int, error)
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error
+	GetIR() (string, error)
 }
 
 type CallCtx interface {

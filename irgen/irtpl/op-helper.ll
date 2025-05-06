@@ -79,8 +79,8 @@ lg{{ $chk.Id }}_gaserr:
 lg{{ $chk.Id }}_minstackerr:
   store i64 {{ $chk.Pc }}, i64* %pc_ptr
 {{- if gt $chk.MinGas 0 }}
-  %lg{{ $chk.Id }}_gasres = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
-  store i64 %lg{{ $chk.Id }}_gasres, i64* %stack_gasleft_ptr, align 1
+  %lg{{ $chk.Id }}_gasres1 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
+  store i64 %lg{{ $chk.Id }}_gasres1, i64* %stack_gasleft_ptr, align 1
 {{- end }}
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
@@ -89,8 +89,8 @@ lg{{ $chk.Id }}_minstackerr:
 lg{{ $chk.Id }}_maxstackerr:
   store i64 {{ $chk.Pc }}, i64* %pc_ptr
 {{- if gt $chk.MinGas 0 }}
-  %lg{{ $chk.Id }}_gasres = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
-  store i64 %lg{{ $chk.Id }}_gasres, i64* %stack_gasleft_ptr, align 1
+  %lg{{ $chk.Id }}_gasres2 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
+  store i64 %lg{{ $chk.Id }}_gasres2, i64* %stack_gasleft_ptr, align 1
 {{- end }}
   store i32 -11, i32* %exitcode_ptr
   br label %error_return

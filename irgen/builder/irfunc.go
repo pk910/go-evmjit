@@ -506,7 +506,6 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 	targetStackRef := branch.stackRefs[branch.stackPos-1]
 
 	localStack := (0 - branch.heapPos) + branch.stackPos
-	fmt.Println("swap", n, "localStack", localStack, "heapPos", branch.heapPos, "branch.stackPos", branch.stackPos)
 	if int(n+1) > localStack {
 		// need to load
 		stackPos := int(n+1) - localStack
@@ -514,7 +513,7 @@ func (irf *IRFunction) AppendSwapN(n uint8) error {
 		opcode.stackAddLoad = stackPos
 	} else {
 		targetStackRef.refVar = opcode.model["StackRef0"].(string)
-		sourceStackRef := branch.stackRefs[branch.stackPos-1-int(n+1)]
+		sourceStackRef := branch.stackRefs[branch.stackPos-int(n+1)]
 		if sourceStackRef == nil {
 			return fmt.Errorf("source stack ref is nil")
 		}
