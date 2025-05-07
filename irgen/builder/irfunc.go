@@ -102,6 +102,8 @@ br_%d:
 `, branch.pc, branch.pc))
 		}
 
+		endsWithStopOpcode := false
+
 		for idx, opcode := range branch.opcodes {
 			model := map[string]interface{}{
 				"Id":         opcode.id,
@@ -236,16 +238,19 @@ br_%d:
 			opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
 
 			if opcode.isExitOpcode {
-				break
+				endsWithStopOpcode = true
+				break // skip remaining opcodes of this branch (unreachable)
 			}
 		}
 
-		stackStoreModel := irf.getStackStoreModel(branch)
-		if len(stackStoreModel) > 0 {
-			stackStoreModel["Id"] = fmt.Sprintf("b%d", branch.pc)
-			stackStoreModel["StackCheck"] = irf.stackcheck
-			stackStoreModel["Verbose"] = irf.verbose
-			ophelper.ExecuteTemplate(&opscode, "stack-store", stackStoreModel)
+		if !endsWithStopOpcode {
+			stackStoreModel := irf.getStackStoreModel(branch)
+			if len(stackStoreModel) > 0 {
+				stackStoreModel["Id"] = fmt.Sprintf("b%d", branch.pc)
+				stackStoreModel["StackCheck"] = irf.stackcheck
+				stackStoreModel["Verbose"] = irf.verbose
+				ophelper.ExecuteTemplate(&opscode, "stack-store", stackStoreModel)
+			}
 		}
 	}
 

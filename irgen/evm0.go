@@ -339,12 +339,14 @@ func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []u
 		err = irf.AppendHighOpcode(opcode, 6, 1, 0, false)
 	case 0xF5: // CREATE2
 		err = irf.AppendHighOpcode(opcode, 4, 1, 0, false)
+	case 0xFA: // STATICCALL
+		err = irf.AppendHighOpcode(opcode, 6, 1, 0, false)
 	case 0xFD: // REVERT
 		err = irf.AppendHighOpcode(opcode, 2, 0, 0, true)
 	case 0xFF: // SELFDESTRUCT
 		err = irf.AppendHighOpcode(opcode, 1, 0, 0, false)
 	default: // ignore invalid opcodes
-		err = irf.AppendStop()
+		err = irf.AppendInvalid()
 		return 1, nil
 	}
 
