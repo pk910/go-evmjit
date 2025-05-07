@@ -445,6 +445,11 @@ func (irf *IRFunction) getLastStackRef() *IRStackRef {
 	return branch.stackRefs[branch.stackPos-1]
 }
 
+func (irf *IRFunction) AppendNop() error {
+	irf.pccount++
+	return nil
+}
+
 func (irf *IRFunction) AppendPushN(n uint8, data []uint8) error {
 	gascost := int32(3)
 	if n == 0 {
