@@ -59,6 +59,7 @@ type IROpcode struct {
 	stackStore    map[string]interface{}
 	skipGasCheck  bool
 	breakGasGroup bool
+	isExitOpcode  bool
 	stackCheck    int
 }
 
@@ -81,6 +82,10 @@ func (irf *IRFunction) SetStackInputOutputs(inputs, outputs uint8, stacksize uin
 	irf.inputs = inputs
 	irf.outputs = outputs
 	irf.maxstack = stacksize
+}
+
+func (irf *IRFunction) GetPc() uint32 {
+	return irf.pccount
 }
 
 func (irf *IRFunction) generateOpIRCode() (string, string) {
@@ -229,6 +234,10 @@ br_%d:
 				model["StackStore"] = storeBuf.String()
 			}
 			opcode.tpl.ExecuteTemplate(&opscode, "ircode", model)
+
+			if opcode.isExitOpcode {
+				break
+			}
 		}
 
 		stackStoreModel := irf.getStackStoreModel(branch)
@@ -423,6 +432,7 @@ func (irf *IRFunction) AppendHighOpcode(op, inputs, outputs uint8, gascost int32
 	branch := irf.branches[irf.branchCount-1]
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	opcode.breakGasGroup = isStop
+	opcode.isExitOpcode = isStop
 	return nil
 }
 
@@ -661,6 +671,19 @@ func (irf *IRFunction) AppendStop() error {
 	branch := irf.branches[irf.branchCount-1]
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	opcode.breakGasGroup = true
+	opcode.isExitOpcode = true
+	return nil
+}
+
+func (irf *IRFunction) AppendInvalid() error {
+	err := irf.appendOpcode("flow-invalid.ll", 1, 0, 0, 0, nil)
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.breakGasGroup = true
+	opcode.isExitOpcode = true
 	return nil
 }
 
