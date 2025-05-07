@@ -18,6 +18,7 @@ type CallCtx interface {
 	Dispose()
 	SetOpBindings(opbindings OpBindings)
 	SetOpCallback(opcallback OpBindingFn)
+	SetDebugCallback(debugcallback DbgBindingFn)
 	GetPC() uint64
 	GetGas() uint64
 	PrintStack(n int)
@@ -26,6 +27,7 @@ type CallCtx interface {
 }
 
 type OpBindingFn func(c CallCtx, op uint8, inputs []uint256.Int, output []uint256.Int, gasleft *uint64) int32
+type DbgBindingFn func(c CallCtx, pc uint64, gasleft *uint64) int32
 
 type OpBindings interface {
 	Dispose()

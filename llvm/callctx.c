@@ -1,5 +1,4 @@
 #include "callctx.h"
-#include "stack.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -52,9 +51,9 @@ int callctx_check_gas(uint64_t *gasleft, uint64_t gas) {
 }
 
 int callctx_print_stack_item(evm_callctx *callctx, int n) {
-    unsigned char *item_ptr = callctx->stack + ((callctx->sp - n) * STACK_WORD_SIZE);
+    unsigned char *item_ptr = callctx->stack + ((callctx->sp - n) * 32);
     printf("Stack[%d/%d]: 0x", n, callctx->sp);
-    for (int i = 0; i < STACK_WORD_SIZE; i++) {
+    for (int i = 0; i < 32; i++) {
         printf("%02x", item_ptr[31-i]);
     }
     printf("\n");

@@ -2,7 +2,6 @@
 #define CALLCTX_H
 
 #include <stdint.h>
-#include "stack.h"
 
 struct evm_callctx;
 typedef struct evm_callctx evm_callctx;

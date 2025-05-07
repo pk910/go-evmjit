@@ -409,6 +409,37 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOu
 	return nil
 }
 
+func (irf *IRFunction) AppendHighOpcode(op, inputs, outputs uint8, gascost int32, isStop bool) error {
+	err := irf.appendOpcode("evmc-call.ll", 1, int(inputs), int(outputs), gascost, map[string]interface{}{
+		"Name":    fmt.Sprintf("c%d", op),
+		"Opcode":  uint64(op),
+		"Inputs":  uint64(inputs),
+		"Outputs": uint64(outputs),
+		"IsDebug": false,
+	})
+	if err != nil {
+		return err
+	}
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+	opcode.breakGasGroup = isStop
+	return nil
+}
+
+func (irf *IRFunction) AppendDebugOpcode() error {
+	err := irf.appendOpcode("evmc-call.ll", 0, 0, 0, 0, map[string]interface{}{
+		"Name":    "debug",
+		"Opcode":  uint64(0xEE),
+		"Inputs":  uint64(0),
+		"Outputs": uint64(0),
+		"IsDebug": true,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (irf *IRFunction) getLastStackRef() *IRStackRef {
 	branch := irf.branches[irf.branchCount-1]
 	return branch.stackRefs[branch.stackPos-1]
@@ -581,22 +612,6 @@ func (irf *IRFunction) AppendShr() error {
 
 func (irf *IRFunction) AppendSar() error {
 	return irf.appendOpcode("logic-sar.ll", 1, 2, 1, 3, nil)
-}
-
-func (irf *IRFunction) AppendHighOpcode(op, inputs, outputs uint8, gascost int32, isStop bool) error {
-	err := irf.appendOpcode("evmc-call.ll", 1, int(inputs), int(outputs), gascost, map[string]interface{}{
-		"Name":    fmt.Sprintf("c%d", op),
-		"Opcode":  uint64(op),
-		"Inputs":  uint64(inputs),
-		"Outputs": uint64(outputs),
-	})
-	if err != nil {
-		return err
-	}
-	branch := irf.branches[irf.branchCount-1]
-	opcode := branch.opcodes[len(branch.opcodes)-1]
-	opcode.breakGasGroup = isStop
-	return nil
 }
 
 func (irf *IRFunction) AppendJumpDest() error {

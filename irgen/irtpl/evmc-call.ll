@@ -31,7 +31,7 @@ store i64 {{ .Pc }}, i64* %pc_ptr
     i8* %callctx_as_i8,
     i8 {{ .Opcode }},
     i8* {{ if gt $buffer_size 0 }}%l{{ $id }}_ptr{{ else }}null{{ end }},
-    i16 {{ mul .Inputs 32 }},
+    i16 {{ if .IsDebug }}{{ .Pc }}{{ else }}{{ mul .Inputs 32 }}{{ end }},
     i16 {{ mul .Outputs 32 }},
     i64* %stack_gasleft_ptr
 )

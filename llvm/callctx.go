@@ -6,7 +6,6 @@ package llvm
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "stack.h"
 #include "callctx.h"
 
 */
@@ -21,14 +20,15 @@ import (
 )
 
 type CallCtx struct {
-	callctx      *C.evm_callctx
-	stack        unsafe.Pointer
-	handle       cgo.Handle
-	disposeStack bool
-	gaslimit     uint64
-	opbindings   types.OpBindings
-	opcallback   types.OpBindingFn
-	userValue    interface{}
+	callctx       *C.evm_callctx
+	stack         unsafe.Pointer
+	handle        cgo.Handle
+	disposeStack  bool
+	gaslimit      uint64
+	opbindings    types.OpBindings
+	opcallback    types.OpBindingFn
+	debugcallback types.DbgBindingFn
+	userValue     interface{}
 }
 
 func NewCallCtx(stack unsafe.Pointer, sp uint64, gaslimit uint64, userValue interface{}) (types.CallCtx, error) {
@@ -75,6 +75,10 @@ func (c *CallCtx) SetOpCallback(opcallback types.OpBindingFn) {
 	c.opcallback = opcallback
 }
 
+func (c *CallCtx) SetDebugCallback(debugcallback types.DbgBindingFn) {
+	c.debugcallback = debugcallback
+}
+
 func (c *CallCtx) GetPC() uint64 {
 	return uint64(C.callctx_get_pc(c.callctx))
 }
@@ -98,6 +102,13 @@ func (c *CallCtx) GetUserValue() interface{} {
 //export RunBinding
 func RunBinding(c *C.evm_callctx, opcode uint8, stack_ptr *C.uint8_t, inputs_len C.uint16_t, output_len C.uint16_t, gasleft *C.uint64_t) C.int32_t {
 	callctx := cgo.Handle(c.goptr).Value().(*CallCtx)
+
+	if stack_ptr == nil && inputs_len > 0 {
+		if callctx.debugcallback != nil {
+			return C.int32_t(callctx.debugcallback(callctx, callctx.GetPC(), (*uint64)(unsafe.Pointer(gasleft))))
+		}
+		return C.int32_t(0)
+	}
 
 	var binding types.OpBindingFn
 

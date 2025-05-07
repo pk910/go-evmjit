@@ -106,7 +106,7 @@ func (p *EVM0Parser) parseOpcode(irf *builder.IRFunction, opcode uint8, data []u
 	case 0x30: // ADDRESS
 		err = irf.AppendHighOpcode(opcode, 0, 1, 2, false)
 	case 0x31: // BALANCE
-		err = irf.AppendHighOpcode(opcode, 1, 1, 2, false)
+		err = irf.AppendHighOpcode(opcode, 1, 1, 0, false)
 	case 0x32: // ORIGIN
 		err = irf.AppendHighOpcode(opcode, 0, 1, 2, false)
 	case 0x33: // CALLER
