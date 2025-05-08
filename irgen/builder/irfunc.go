@@ -49,6 +49,7 @@ type IROpcodeCheck struct {
 	MinStack uint64
 	MaxStack uint64
 	MinGas   uint64
+	OpGas    uint64
 }
 
 type IROpcode struct {
@@ -172,19 +173,20 @@ br_%d:
 			}
 
 			opChecks := []*IROpcodeCheck{}
-			getOpCheck := func(pc uint32) *IROpcodeCheck {
+			getOpCheck := func(opcode *IROpcode) *IROpcodeCheck {
 				for _, check := range opChecks {
-					if check.Pc == uint64(pc) {
+					if check.Pc == uint64(opcode.pc) {
 						return check
 					}
 				}
 
 				check := &IROpcodeCheck{
-					Id:       pc,
-					Pc:       uint64(pc),
+					Id:       opcode.id,
+					Pc:       uint64(opcode.pc),
 					MinStack: 0,
 					MaxStack: 0,
 					MinGas:   0,
+					OpGas:    uint64(opcode.gas),
 				}
 				opChecks = append(opChecks, check)
 				return check
@@ -199,7 +201,7 @@ br_%d:
 				totalStackIn := int32(len(opcode.stackLoad))
 				totalStackOut := int32(opcode.stackCheck)
 
-				opCheck := getOpCheck(opcode.pc)
+				opCheck := getOpCheck(opcode)
 				opCheck.MinGas = uint64(totalGas)
 				opCheck.MaxStack = uint64(totalStackOut)
 
@@ -220,7 +222,7 @@ br_%d:
 							if followup.stackCheck > 0 {
 								totalStackOut = int32(followup.stackCheck)
 							}
-							opCheck := getOpCheck(followup.pc)
+							opCheck := getOpCheck(followup)
 							opCheck.MinGas = uint64(totalGas)
 							opCheck.MaxStack = uint64(followup.stackCheck)
 

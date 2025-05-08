@@ -71,6 +71,10 @@ lg{{ $chk.Id }}_maxstackok:
 {{- range $chk := .Checks }}
 {{- if gt $chk.MinGas 0 }}
 lg{{ $chk.Id }}_gaserr:
+{{- if gt (sub $chk.MinGas $chk.OpGas) 0 }}
+  %lg{{ $chk.Id }}_gasres1 = add i64 %l{{ $id }}_gas1, -{{ sub $chk.MinGas $chk.OpGas }}
+  store i64 %lg{{ $chk.Id }}_gasres1, i64* %stack_gasleft_ptr, align 1
+{{- end }}
   store i64 {{ $chk.Pc }}, i64* %pc_ptr
   store i32 -13, i32* %exitcode_ptr
   br label %error_return
@@ -79,8 +83,8 @@ lg{{ $chk.Id }}_gaserr:
 lg{{ $chk.Id }}_minstackerr:
   store i64 {{ $chk.Pc }}, i64* %pc_ptr
 {{- if gt $chk.MinGas 0 }}
-  %lg{{ $chk.Id }}_gasres1 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
-  store i64 %lg{{ $chk.Id }}_gasres1, i64* %stack_gasleft_ptr, align 1
+  %lg{{ $chk.Id }}_gasres2 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
+  store i64 %lg{{ $chk.Id }}_gasres2, i64* %stack_gasleft_ptr, align 1
 {{- end }}
   store i32 -10, i32* %exitcode_ptr
   br label %error_return
@@ -89,8 +93,8 @@ lg{{ $chk.Id }}_minstackerr:
 lg{{ $chk.Id }}_maxstackerr:
   store i64 {{ $chk.Pc }}, i64* %pc_ptr
 {{- if gt $chk.MinGas 0 }}
-  %lg{{ $chk.Id }}_gasres2 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
-  store i64 %lg{{ $chk.Id }}_gasres2, i64* %stack_gasleft_ptr, align 1
+  %lg{{ $chk.Id }}_gasres3 = add i64 %l{{ $id }}_gas1, -{{ $chk.MinGas }}
+  store i64 %lg{{ $chk.Id }}_gasres3, i64* %stack_gasleft_ptr, align 1
 {{- end }}
   store i32 -11, i32* %exitcode_ptr
   br label %error_return
