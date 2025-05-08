@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"strconv"
+	"strings"
 
 	"github.com/holiman/uint256"
 	"github.com/pk910/go-evmjit/irgen/irtpl"
@@ -22,6 +24,7 @@ type IRFunction struct {
 	verbose     bool
 	stackcheck  bool
 	noinitjump  bool
+	hasdynjumps bool
 }
 
 type IRBranch struct {
@@ -32,6 +35,7 @@ type IRBranch struct {
 	stackMax  int
 	stackMin  int
 	stackRefs map[int]*IRStackRef
+	jumpRefs  int
 }
 
 type IRStackRef struct {
@@ -60,7 +64,10 @@ type IROpcode struct {
 	skipGasCheck  bool
 	breakGasGroup bool
 	isExitOpcode  bool
+	isStaticJump  bool
+	isUnnecessary bool
 	stackCheck    int
+	staticJumpPc  uint32
 }
 
 // NewIRFunction creates a new IRFunction.
@@ -88,6 +95,28 @@ func (irf *IRFunction) GetPc() uint32 {
 	return irf.pccount
 }
 
+func (irf *IRFunction) updateJumpValidity() {
+	branchMap := map[uint32]*IRBranch{}
+	for _, branch := range irf.branches {
+		branchMap[branch.pc] = branch
+		branch.jumpRefs = 0
+	}
+
+	for _, branch := range irf.branches {
+		for _, opcode := range branch.opcodes {
+			if opcode.isStaticJump {
+				branch := branchMap[opcode.staticJumpPc]
+				if branch == nil {
+					opcode.model["IsValidTarget"] = false
+				} else {
+					opcode.model["IsValidTarget"] = true
+					branch.jumpRefs++
+				}
+			}
+		}
+	}
+}
+
 func (irf *IRFunction) generateOpIRCode() (string, string) {
 	defcode := bytes.Buffer{}
 	opscode := bytes.Buffer{}
@@ -95,6 +124,10 @@ func (irf *IRFunction) generateOpIRCode() (string, string) {
 	ophelper := irtpl.GetTemplate("op-helper.ll")
 
 	for _, branch := range irf.branches {
+		if !irf.hasdynjumps && branch.jumpRefs == 0 && branch.pc > 0 {
+			continue // skip dead branch
+		}
+
 		if branch.pc > 0 || !irf.noinitjump {
 			opscode.WriteString(fmt.Sprintf(`
 br label %%br_%d
@@ -105,6 +138,10 @@ br_%d:
 		endsWithStopOpcode := false
 
 		for idx, opcode := range branch.opcodes {
+			if opcode.isUnnecessary {
+				continue
+			}
+
 			model := map[string]interface{}{
 				"Id":         opcode.id,
 				"Pc":         opcode.pc,
@@ -121,6 +158,18 @@ br_%d:
 
 			opcode.tpl.ExecuteTemplate(&defcode, "defcode", model)
 			opcode.tpl.ExecuteTemplate(&opscode, "irhead", model)
+
+			if opcode.isStaticJump {
+				// check valid jump target
+				isValid := false
+				for _, branch := range irf.branches {
+					if branch.pc == opcode.staticJumpPc {
+						isValid = true
+						break
+					}
+				}
+				model["IsValidTarget"] = isValid
+			}
 
 			opChecks := []*IROpcodeCheck{}
 			getOpCheck := func(pc uint32) *IROpcodeCheck {
@@ -258,6 +307,8 @@ br_%d:
 }
 
 func (irf *IRFunction) String() string {
+	irf.updateJumpValidity()
+
 	fncode := bytes.Buffer{}
 	defcode, opscode := irf.generateOpIRCode()
 
@@ -283,20 +334,22 @@ store i64 %%gasleft_val, i64* %%stack_gasleft_ptr
 `, irf.name))
 
 	// generate jumptable
-	tpl := irtpl.GetTemplate("flow-jumptable.ll")
-	branchPcs := []uint64{}
-	hasBranches := false
-	for _, branch := range irf.branches {
-		if branch.pc == 0 && irf.noinitjump {
-			continue
+	if irf.hasdynjumps {
+		tpl := irtpl.GetTemplate("flow-jumptable.ll")
+		branchPcs := []uint64{}
+		hasBranches := false
+		for _, branch := range irf.branches {
+			if branch.pc == 0 && irf.noinitjump {
+				continue
+			}
+			branchPcs = append(branchPcs, uint64(branch.pc))
+			hasBranches = true
 		}
-		branchPcs = append(branchPcs, uint64(branch.pc))
-		hasBranches = true
+		tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
+			"Branches":    branchPcs,
+			"HasBranches": hasBranches,
+		})
 	}
-	tpl.ExecuteTemplate(&fncode, "ircode", map[string]interface{}{
-		"Branches":    branchPcs,
-		"HasBranches": hasBranches,
-	})
 
 	// add opcodes
 	fncode.WriteString(opscode)
@@ -423,6 +476,37 @@ func (irf *IRFunction) appendOpcode(name string, pccount uint8, stackIn, stackOu
 	return nil
 }
 
+func (irf *IRFunction) checkUnnecessaryOperation(calcFn func(stackRefs []uint256.Int) (*uint256.Int, error)) error {
+	branch := irf.branches[irf.branchCount-1]
+	opcode := branch.opcodes[len(branch.opcodes)-1]
+
+	// check if this is a unnecessary operation on static inputs
+	stackRefs := opcode.model["StackRefs"].([]string)
+	for _, stackRef := range stackRefs {
+		if strings.HasPrefix(stackRef, "%") {
+			return nil // dynamic input
+		}
+	}
+
+	stackRefValues := make([]uint256.Int, len(stackRefs))
+	for i, stackRef := range stackRefs {
+		err := stackRefValues[i].SetFromDecimal(stackRef)
+		if err != nil {
+			return err // invalid stack ref
+		}
+	}
+
+	result, err := calcFn(stackRefValues)
+	if err != nil {
+		return err // invalid stack ref
+	}
+
+	stackRef := branch.stackRefs[branch.stackPos-1]
+	stackRef.refVar = result.String()
+	opcode.isUnnecessary = true
+	return nil
+}
+
 func (irf *IRFunction) AppendHighOpcode(op, inputs, outputs uint8, gascost int32, isStop bool) error {
 	err := irf.appendOpcode("evmc-call.ll", 1, int(inputs), int(outputs), gascost, map[string]interface{}{
 		"Name":    fmt.Sprintf("c%d", op),
@@ -455,11 +539,6 @@ func (irf *IRFunction) AppendDebugOpcode() error {
 	return nil
 }
 
-func (irf *IRFunction) getLastStackRef() *IRStackRef {
-	branch := irf.branches[irf.branchCount-1]
-	return branch.stackRefs[branch.stackPos-1]
-}
-
 func (irf *IRFunction) AppendNop() error {
 	irf.pccount++
 	return nil
@@ -478,7 +557,8 @@ func (irf *IRFunction) AppendPushN(n uint8, data []uint8) error {
 		return err
 	}
 
-	stackRef := irf.getLastStackRef()
+	branch := irf.branches[irf.branchCount-1]
+	stackRef := branch.stackRefs[branch.stackPos-1]
 	stackRef.refVar = uint256.NewInt(0).SetBytes(data).String()
 	return nil
 }
@@ -551,27 +631,63 @@ func (irf *IRFunction) AppendPop() error {
 }
 
 func (irf *IRFunction) AppendAdd() error {
-	return irf.appendOpcode("math-add.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("math-add.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Add(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendSub() error {
-	return irf.appendOpcode("math-sub.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("math-sub.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Sub(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendMul() error {
-	return irf.appendOpcode("math-mul.ll", 1, 2, 1, 5, nil)
+	err := irf.appendOpcode("math-mul.ll", 1, 2, 1, 5, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Mul(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendDiv() error {
-	return irf.appendOpcode("math-div.ll", 1, 2, 1, 5, nil)
+	err := irf.appendOpcode("math-div.ll", 1, 2, 1, 5, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Div(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendAddmod() error {
-	return irf.appendOpcode("math-addmod.ll", 1, 3, 1, 8, nil)
+	err := irf.appendOpcode("math-addmod.ll", 1, 3, 1, 8, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).AddMod(&stackRefs[0], &stackRefs[1], &stackRefs[2]), nil
+	})
 }
 
 func (irf *IRFunction) AppendMulmod() error {
-	return irf.appendOpcode("math-mulmod.ll", 1, 3, 1, 8, nil)
+	err := irf.appendOpcode("math-mulmod.ll", 1, 3, 1, 8, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).MulMod(&stackRefs[0], &stackRefs[1], &stackRefs[2]), nil
+	})
 }
 
 func (irf *IRFunction) AppendSignextend() error {
@@ -579,11 +695,31 @@ func (irf *IRFunction) AppendSignextend() error {
 }
 
 func (irf *IRFunction) AppendLt() error {
-	return irf.appendOpcode("logic-lt.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-lt.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		cmp := stackRefs[0].Cmp(&stackRefs[1])
+		if cmp < 0 {
+			return uint256.NewInt(1), nil
+		}
+		return uint256.NewInt(0), nil
+	})
 }
 
 func (irf *IRFunction) AppendGt() error {
-	return irf.appendOpcode("logic-gt.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-gt.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		cmp := stackRefs[0].Cmp(&stackRefs[1])
+		if cmp > 0 {
+			return uint256.NewInt(1), nil
+		}
+		return uint256.NewInt(0), nil
+	})
 }
 
 func (irf *IRFunction) AppendSlt() error {
@@ -595,7 +731,17 @@ func (irf *IRFunction) AppendSgt() error {
 }
 
 func (irf *IRFunction) AppendEq() error {
-	return irf.appendOpcode("logic-eq.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-eq.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		cmp := stackRefs[0].Cmp(&stackRefs[1])
+		if cmp == 0 {
+			return uint256.NewInt(1), nil
+		}
+		return uint256.NewInt(0), nil
+	})
 }
 
 func (irf *IRFunction) AppendIsZero() error {
@@ -603,19 +749,43 @@ func (irf *IRFunction) AppendIsZero() error {
 }
 
 func (irf *IRFunction) AppendAnd() error {
-	return irf.appendOpcode("logic-and.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-and.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).And(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendOr() error {
-	return irf.appendOpcode("logic-or.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-or.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Or(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendXor() error {
-	return irf.appendOpcode("logic-xor.ll", 1, 2, 1, 3, nil)
+	err := irf.appendOpcode("logic-xor.ll", 1, 2, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Xor(&stackRefs[0], &stackRefs[1]), nil
+	})
 }
 
 func (irf *IRFunction) AppendNot() error {
-	return irf.appendOpcode("logic-not.ll", 1, 1, 1, 3, nil)
+	err := irf.appendOpcode("logic-not.ll", 1, 1, 1, 3, nil)
+	if err != nil {
+		return err
+	}
+	return irf.checkUnnecessaryOperation(func(stackRefs []uint256.Int) (*uint256.Int, error) {
+		return uint256.NewInt(0).Not(&stackRefs[0]), nil
+	})
 }
 
 func (irf *IRFunction) AppendByte() error {
@@ -653,6 +823,18 @@ func (irf *IRFunction) AppendJump() error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	opcode.stackStore = irf.getStackStoreModel(branch)
 	opcode.breakGasGroup = true
+
+	dstRef := opcode.model["StackRef0"].(string)
+	if strings.HasPrefix(dstRef, "%") {
+		irf.hasdynjumps = true
+	} else {
+		opcode.isStaticJump = true
+		jumpTarget, _ := strconv.Atoi(dstRef)
+		opcode.staticJumpPc = uint32(jumpTarget)
+	}
+
+	opcode.model["IsStatic"] = opcode.isStaticJump
+	opcode.model["IsValidTarget"] = false
 	return nil
 }
 
@@ -665,6 +847,18 @@ func (irf *IRFunction) AppendJumpI() error {
 	opcode := branch.opcodes[len(branch.opcodes)-1]
 	opcode.stackStore = irf.getStackStoreModel(branch)
 	opcode.breakGasGroup = true
+
+	dstRef := opcode.model["StackRef0"].(string)
+	if strings.HasPrefix(dstRef, "%") {
+		irf.hasdynjumps = true
+	} else {
+		opcode.isStaticJump = true
+		jumpTarget, _ := strconv.Atoi(dstRef)
+		opcode.staticJumpPc = uint32(jumpTarget)
+	}
+
+	opcode.model["IsStatic"] = opcode.isStaticJump
+	opcode.model["IsValidTarget"] = false
 	return nil
 }
 
@@ -697,7 +891,8 @@ func (irf *IRFunction) AppendPc() error {
 	if err != nil {
 		return err
 	}
-	stackRef := irf.getLastStackRef()
+	branch := irf.branches[irf.branchCount-1]
+	stackRef := branch.stackRefs[branch.stackPos-1]
 	stackRef.refVar = fmt.Sprintf("%v", irf.opcount-1)
 	return nil
 }
