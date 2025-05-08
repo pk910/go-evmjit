@@ -893,7 +893,7 @@ func (irf *IRFunction) AppendPc() error {
 	}
 	branch := irf.branches[irf.branchCount-1]
 	stackRef := branch.stackRefs[branch.stackPos-1]
-	stackRef.refVar = fmt.Sprintf("%v", irf.opcount-1)
+	stackRef.refVar = fmt.Sprintf("%v", irf.pccount-1)
 	return nil
 }
 
